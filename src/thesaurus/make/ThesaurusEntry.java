@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import jsequtils.genome.GenomeInfo;
 import jsequtils.sequence.SequenceComplementer;
 import jsequtils.sequence.SequenceMap;
@@ -143,7 +142,7 @@ class ThesaurusEntry {
         String originRefBase = parsedtokens[12];
         String originAltBase = parsedtokens[13];
 
-        anchors = toAnchorArray(alignPosition, originPosition, alignRefBase, originRefBase, alignAltBase, originAltBase);        
+        anchors = toAnchorArray(alignPosition, originPosition, alignRefBase, originRefBase, alignAltBase, originAltBase);
         if (penalty != anchors.size()) {
             String line = getAlignChr() + "\t" + this.alignStart + "\t" + this.alignEnd + "\t" + getOriginChr() + "\t" + this.originStart + "\t" + this.originEnd;
             System.out.println("Malformed ThesaurusEntry line (anchor and mismatch fields do not match):\n" + line);
@@ -159,8 +158,8 @@ class ThesaurusEntry {
      * @param entry
      */
     public ThesaurusEntry(ThesaurusEntry entry) {
-        ginfo = entry.ginfo;        
-        originChrIndex = entry.originChrIndex;        
+        ginfo = entry.ginfo;
+        originChrIndex = entry.originChrIndex;
         alignChrIndex = entry.alignChrIndex;
         originStart = entry.originStart;
         originEnd = entry.originEnd;
@@ -238,9 +237,6 @@ class ThesaurusEntry {
      *
      */
     public boolean isTrivial() {
-        //if (alignStart == originStart && alignEnd == originEnd && alignChr.equals(originChr) && alignStrand == '+') {
-        //    return true;
-        //}
         if (alignStart == originStart && alignEnd == originEnd && alignChrIndex == originChrIndex && alignStrand == '+') {
             return true;
         }
@@ -281,11 +277,6 @@ class ThesaurusEntry {
      * true if the align and origin regions overlap
      */
     public boolean isAlignOriginOverlapping() {
-        //if (alignChr.equals(originChr)) {
-        //    return overlap(alignStart, alignEnd, originStart, originEnd);
-        //} else {
-        //    return false;
-        //}
 
         if (alignChrIndex == originChrIndex) {
             return overlap(alignStart, alignEnd, originStart, originEnd);
@@ -335,6 +326,16 @@ class ThesaurusEntry {
         this.penalty = anchors.size();
     }
 
+    /**
+     *
+     * @param index
+     * @return
+     *
+     * the anchor stored at a position.
+     *
+     * Warning: this gives the anchor object, not a defensive copy. So don't
+     * change it.
+     */
     public ThesaurusAnchor getAnchor(int index) {
         return anchors.get(index);
     }
@@ -510,10 +511,6 @@ class ThesaurusEntry {
     public boolean mergeWith(ThesaurusEntry entry) {
 
         // Check that the chromosomes and strands match
-        //if (alignStrand != entry.alignStrand || !alignChr.equals(entry.alignChr)
-        //        || !originChr.equals(entry.originChr)) {
-        //    return false;
-        //}
         if (alignStrand != entry.alignStrand || alignChrIndex != entry.alignChrIndex
                 || originChrIndex != entry.originChrIndex) {
             return false;
@@ -553,9 +550,6 @@ class ThesaurusEntry {
 
         // take care of a perverse case where (AAGGAA)GGAA is linked to AAGG(AAGGAA) on same chromosome
         // wherein after a merge the output would be linking a region to itself
-        //if (newAlignStart == newOriginStart && newAlignEnd == newOriginEnd && alignChr.equals(originChr)) {
-        //    return false;
-        //}
         if (newAlignStart == newOriginStart && newAlignEnd == newOriginEnd && alignChrIndex == originChrIndex) {
             return false;
         }
@@ -564,19 +558,6 @@ class ThesaurusEntry {
         if (newAlignStart == alignStart && newAlignEnd == alignEnd) {
             return true;
         }
-
-        // in this block avoid merging regions that overlap, but orientiation is not right
-        // eg.   XXXXX------------XXXXX
-        //           XXXXX----XXXXX
-        //if (alignStrand == '+') {
-        //    if (newAlignStart - newOriginStart != alignStart - originStart) {
-        //        return false;
-        //    }
-        //} else {
-        //    if (newAlignStart - newOriginStart == alignStart - originStart) {
-        //        return false;
-        //    }
-        //}
 
         // if reached here, then accept the merge.
         // make a joint list of anchors here.
@@ -591,6 +572,53 @@ class ThesaurusEntry {
         this.penalty = anchors.size();
 
         return true;
+    }
+
+    /**
+     * When an entry links A -> B, by symmetry one also expects B->A. This
+     * function generates the reverse entry.
+     *
+     * @return
+     *
+     * a completely new entry that is the reverse of the current one
+     *
+     */
+    public ThesaurusEntry getReverseEntry() {
+        // create a new entry based on this object
+        ThesaurusEntry rev = new ThesaurusEntry(this);
+
+        // switch the coordinate files
+        rev.alignChrIndex = this.originChrIndex;
+        rev.alignEnd = this.originEnd;
+        rev.alignStart = this.originStart;
+        rev.originChrIndex = this.alignChrIndex;
+        rev.originEnd = this.alignEnd;
+        rev.originStart = this.alignStart;
+        rev.alignStrand = this.alignStrand;
+        rev.penalty = this.penalty;
+
+        // create array of anchors.
+        int numanchors = this.getNumAnchors();
+        ArrayList<ThesaurusAnchor> tempanchors = new ArrayList<ThesaurusAnchor>(numanchors);
+
+        
+        if (this.alignStrand == '+') {
+            // for plus strand just reverse each anchor one at a time
+            for (int i = 0; i < numanchors; i++) {
+                ThesaurusAnchor thisanch = this.getAnchor(i);
+                tempanchors.add(thisanch.reverse());
+            }
+        } else {
+            // for minus strand need to reverse the order of the anchors
+            for (int i = 0; i < numanchors; i++) {
+                ThesaurusAnchor thisanch = this.getAnchor(numanchors - i - 1);
+                tempanchors.add(thisanch.reverse());
+            }
+        }
+        rev.anchors = tempanchors;
+        rev.ok = this.ok;
+
+        return rev;
     }
 
     /**
@@ -881,7 +909,7 @@ class ThesaurusEntry {
  * @author tkonopka
  */
 class ThesaurusEntryAlignComparator implements Comparator {
-    
+
     @Override
     public int compare(Object o1, Object o2) {
         ThesaurusEntry oi1 = (ThesaurusEntry) o1;
@@ -906,7 +934,7 @@ class ThesaurusEntryAlignComparator implements Comparator {
 
             int originChr1 = oi1.originChrIndex;
             int originChr2 = oi2.originChrIndex;
-            
+
             if (originChr1 < originChr2) {
                 return -1;
             } else if (originChr1 > originChr2) {
@@ -935,15 +963,6 @@ class ThesaurusEntryAlignComparator implements Comparator {
  */
 class ThesaurusEntryMergingComparator implements Comparator {
 
-    //private final HashMap<String, Integer> chrorder;
-
-    //public ThesaurusEntryMergingComparator(GenomeInfo ginfo) {
-    //    chrorder = new HashMap<String, Integer>(ginfo.getNumChromosomes() * 2);
-    //    for (int i = 0; i < ginfo.getNumChromosomes(); i++) {
-    //        chrorder.put(ginfo.getChrName(i), ginfo.getChrIndex(ginfo.getChrName(i)));
-    //    }
-    //}    
-    
     @Override
     public int compare(Object o1, Object o2) {
         ThesaurusEntry oi1 = (ThesaurusEntry) o1;
@@ -961,7 +980,7 @@ class ThesaurusEntryMergingComparator implements Comparator {
         // after the strand, use chromosomes, arrange them in order of the genome
         int alignChr1 = oi1.alignChrIndex;
         int alignChr2 = oi2.alignChrIndex;
-        
+
         if (alignChr1 < alignChr2) {
             return -1;
         } else if (alignChr1 > alignChr2) {
@@ -980,7 +999,6 @@ class ThesaurusEntryMergingComparator implements Comparator {
         } else {
             return 0;
         }
-
 
     }
 }
@@ -1013,6 +1031,24 @@ class ThesaurusAnchor {
         }
         return (alignRef == ta.alignRef && alignAlt == ta.alignAlt
                 && originRef == ta.originRef && originAlt == ta.originAlt);
+    }
+
+    /**
+     *
+     * @return
+     *
+     * a new anchor that has align<->origin information switched.
+     *
+     */
+    public ThesaurusAnchor reverse() {
+        ThesaurusAnchor rev = new ThesaurusAnchor();
+        rev.alignPosition = this.originPosition;
+        rev.originPosition = this.alignPosition;
+        rev.alignAlt = this.originAlt;
+        rev.alignRef = this.originRef;
+        rev.originAlt = this.alignAlt;
+        rev.originRef = this.alignRef;
+        return rev;
     }
 
     @Override

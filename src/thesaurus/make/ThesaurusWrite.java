@@ -753,8 +753,12 @@ class ProcessRecordsPassOneRunnable implements Runnable {
         }
 
         if (isAlignmentClean(record)) {
-            completeThesaurusEntry(entry, record);
+            // fill in the missing information about mismatches in the entry
+            completeThesaurusEntry(entry, record);            
             outputThesaurusEntry(entry, outstreams.get(entry.getAlignChr()));
+            // symmetrize the thesaurus by also outputing an entry with align<->origin
+            ThesaurusEntry reverseentry = entry.getReverseEntry();            
+            outputThesaurusEntry(reverseentry, outstreams.get(reverseentry.getAlignChr()));
         }
 
     }
@@ -857,7 +861,7 @@ class ProcessRecordsPassOneRunnable implements Runnable {
             }
         }
     }
-
+        
     /**
      * Outputs one line of the thesaurus
      *
