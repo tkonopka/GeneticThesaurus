@@ -580,8 +580,8 @@ public class ThesaurusFilter extends ThesaurusMapTool {
 
         int numvariants = calledvariants.size();
         for (int i = 0; i < numvariants; i++) {
-            VCFEntry entry = calledvariants.getVariant(i);
-
+            VCFEntry entry = calledvariants.getVariant(i);            
+            
             if (entry.isIndel()) {
                 // skip processing indels, but still change the filter and format fields
                 adjustVcfEntryFilter(entry, true, "thesaurus");

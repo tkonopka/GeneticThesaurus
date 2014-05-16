@@ -15,7 +15,6 @@
  */
 package thesaurus.make;
 
-import thesaurus.make.ThesaurusEarIndex;
 import thesaurus.util.ThesaurusLog;
 import thesaurus.util.ThesaurusIO;
 import java.io.BufferedReader;
@@ -501,7 +500,7 @@ class OneReadAligner implements Runnable {
         // look for alignments of the read on the positive strand
         ArrayList<Integer> alignplus = index.alignSequence(read.readsequence, maxmismatches);
         ArrayList<Integer> alignminus = index.alignSequence(SequenceComplementer.complement(read.readsequence), maxmismatches);
-
+                
         // output the alignments onto the queue
         try {
             for (int i = 0; i < alignplus.size(); i += 2) {

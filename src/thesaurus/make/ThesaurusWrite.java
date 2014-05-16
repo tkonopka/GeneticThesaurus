@@ -535,13 +535,15 @@ public class ThesaurusWrite extends ThesaurusMapTool {
         Arrays.sort(tempentries, temc);
 
         ThesaurusEntry lastentry = tempentries[0];
+        ThesaurusEntry lastcopyR = new ThesaurusEntry(lastentry);
         lastentry.extendLeft(seqmap, errorrate, 2, minalignstart);
-        lastentry.extendRight(seqmap, errorrate, 2);
+        lastcopyR.extendRight(seqmap, errorrate, 2);
+        lastentry.mergeWith(lastcopyR);
         ans.add(lastentry);
 
         for (int i = 1; i < numentries; i++) {
-            ThesaurusEntry entry = tempentries[i];
-            if (!lastentry.mergeWith(entry)) {
+            ThesaurusEntry entry = tempentries[i];            
+            if (!lastentry.mergeWith(entry)) {                
                 // try to make last entry as long as possible                                                
                 lastentry.extendLeft(seqmap, errorrate, 2, minalignstart);
                 lastentry.extendRight(seqmap, errorrate, 2);
@@ -553,11 +555,11 @@ public class ThesaurusWrite extends ThesaurusMapTool {
                 entry.mergeWith(entrycopyR);
 
                 // last attempt to merge with previous entry
-                if (!lastentry.mergeWith(entry)) {
+                if (!lastentry.mergeWith(entry)) {                    
                     ans.add(entry);
                     lastentry = entry;
                 }
-            }
+            } 
         }
 
         //System.out.print(" -> " + ans.size());
@@ -654,8 +656,7 @@ public class ThesaurusWrite extends ThesaurusMapTool {
 
     static void writeThesaurusHeader(OutputStream outstream, int minmapqual, String custom) throws IOException {
         StringBuilder header = new StringBuilder();
-        header.append("##GeneticThesaurus\n");
-        header.append("##minmapqual=").append(minmapqual).append("\n");
+        header.append("##GeneticThesaurus\n");        
         header.append(custom).append("\n");
         header.append(ThesaurusEntry.getHeader());
         outstream.write(header.toString().getBytes());
@@ -754,10 +755,10 @@ class ProcessRecordsPassOneRunnable implements Runnable {
 
         if (isAlignmentClean(record)) {
             // fill in the missing information about mismatches in the entry
-            completeThesaurusEntry(entry, record);            
+            completeThesaurusEntry(entry, record);
             outputThesaurusEntry(entry, outstreams.get(entry.getAlignChr()));
             // symmetrize the thesaurus by also outputing an entry with align<->origin
-            ThesaurusEntry reverseentry = entry.getReverseEntry();            
+            ThesaurusEntry reverseentry = entry.getReverseEntry();
             outputThesaurusEntry(reverseentry, outstreams.get(reverseentry.getAlignChr()));
         }
 
@@ -861,7 +862,7 @@ class ProcessRecordsPassOneRunnable implements Runnable {
             }
         }
     }
-        
+
     /**
      * Outputs one line of the thesaurus
      *
