@@ -21,7 +21,6 @@ import thesaurus.util.ThesaurusIO;
 import thesaurus.util.SNVPosition;
 import thesaurus.util.SNVPositionDetails;
 import thesaurus.util.ThesaurusSAMRecord;
-import thesaurus.util.VCFEntrySet;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -36,12 +35,14 @@ import jsequtils.genome.GenomePositionComparator;
 import jsequtils.genome.GenomePositionInterface;
 import jsequtils.sequence.FastaReader;
 import jsequtils.variants.VCFEntry;
+import jsequtils.variants.VCFEntrySet;
 import net.sf.samtools.SAMRecord;
 
 /**
- * One of main programs under GeneticThesaurus. Supposed to concurrently scan a thesaurus file,
- * a vcf file, and a bam file with the purpose to annotate variants.
- * 
+ * One of main programs under GeneticThesaurus. Supposed to concurrently scan a
+ * thesaurus file, a vcf file, and a bam file with the purpose to annotate
+ * variants.
+ *
  * @author tkonopka
  */
 public class ThesaurusFilter extends ThesaurusMapTool {
@@ -82,7 +83,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         ThesaurusIO.printHelpItem("--genome <File>", "genome fasta file");
         //ThesaurusIO.printHelpItem("--method <String>", "choose method to use information from bam file (values baf, full; default full)");
         ThesaurusIO.printHelpItem("--output <String>", "prefix for output files");
-        ThesaurusIO.printHelpItem("--thesaurus <File>", "thesaurus file, merged and sorted");
+        ThesaurusIO.printHelpItem("--thesaurus <File>", "thesaurus file");
         ThesaurusIO.printHelpItem("--vcf <File>", "variant call file matching --bam");
         System.out.println("\nFiltering details:");
         ThesaurusIO.printHelpItem("--insertsize <int>", "insert size for paired-end reads [default " + insertsize + "]");
@@ -491,11 +492,11 @@ public class ThesaurusFilter extends ThesaurusMapTool {
 
     /**
      * Convert between a structure of positions in a network form to an array.
-     * 
+     *
      * @param variants
      * @param network
      * @param ginfo
-     * @return 
+     * @return
      */
     private ArrayList<SNVPositionDetails> makeListOfAllLoci(VCFEntrySet variants,
             SNVPositionNetwork network, GenomeInfo ginfo) {
@@ -580,8 +581,8 @@ public class ThesaurusFilter extends ThesaurusMapTool {
 
         int numvariants = calledvariants.size();
         for (int i = 0; i < numvariants; i++) {
-            VCFEntry entry = calledvariants.getVariant(i);            
-            
+            VCFEntry entry = calledvariants.getVariant(i);
+
             if (entry.isIndel()) {
                 // skip processing indels, but still change the filter and format fields
                 adjustVcfEntryFilter(entry, true, "thesaurus");
@@ -651,7 +652,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
                     } else {
                         int numsynonyms = synonyms.size();
                         // if there are too many, give up
-                        if (numsynonyms > toomany) {
+                        if (numsynonyms > toomany || containsLinkToUnaligned(synonyms)) {
                             adjustVcfEntryFilter(entry, numsynonyms == 0, "thesaurusmany");
                             adjustVcfEntryFormatGenotype(entry, numsynonyms);
                         } else {
@@ -676,8 +677,31 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         bamregions.close();
         genomereader.close();
         System.gc();
-        
+
         return synnetwork;
+    }
+
+    /**
+     *
+     * screens candidate sites for SNVpositions that do not point to a real
+     * position on the genome (i.e. to an "unaligned" position)
+     *
+     * @param synonyms
+     *
+     * @return
+     *
+     * true if one of the elements in the array is unaligned (negative
+     * chromosome index)
+     *
+     */
+    private boolean containsLinkToUnaligned(ArrayList<SNVPosition> synonyms) {
+        int ss = synonyms.size();
+        for (int i = 0; i < ss; i++) {
+            if (synonyms.get(i).getChrIndex() < 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

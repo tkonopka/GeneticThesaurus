@@ -284,13 +284,16 @@ public class ThesaurusWrite extends ThesaurusMapTool {
             if (!skip1) {
                 // make temporary files, one per chromosome
                 HashMap<String, OutputStream> tempfiles = makePassOneTempFiles(output);
+                // make file for unaligned reads
+                OutputStream outunaligned = OutputStreamMaker.makeOutputStream(output + ".unaligned.bed");
                 // read all the bamfiles one by one 
                 theslog.log(true, "Pass one: " + bamfiles.size() + " alignment files");
-                writeThesaurusPassOne(genomeSeqMap, tempfiles);
+                writeThesaurusPassOne(genomeSeqMap, tempfiles, outunaligned);
                 // close all the temporary files
                 for (Map.Entry<String, OutputStream> ee : tempfiles.entrySet()) {
                     ee.getValue().close();
                 }
+                outunaligned.close();
             } else {
                 theslog.log(true, "Skipping pass one");
             }
@@ -542,8 +545,8 @@ public class ThesaurusWrite extends ThesaurusMapTool {
         ans.add(lastentry);
 
         for (int i = 1; i < numentries; i++) {
-            ThesaurusEntry entry = tempentries[i];            
-            if (!lastentry.mergeWith(entry)) {                
+            ThesaurusEntry entry = tempentries[i];
+            if (!lastentry.mergeWith(entry)) {
                 // try to make last entry as long as possible                                                
                 lastentry.extendLeft(seqmap, errorrate, 2, minalignstart);
                 lastentry.extendRight(seqmap, errorrate, 2);
@@ -555,11 +558,11 @@ public class ThesaurusWrite extends ThesaurusMapTool {
                 entry.mergeWith(entrycopyR);
 
                 // last attempt to merge with previous entry
-                if (!lastentry.mergeWith(entry)) {                    
+                if (!lastentry.mergeWith(entry)) {
                     ans.add(entry);
                     lastentry = entry;
                 }
-            } 
+            }
         }
 
         //System.out.print(" -> " + ans.size());
@@ -634,15 +637,20 @@ public class ThesaurusWrite extends ThesaurusMapTool {
      *
      * @param genomereader
      * @param inputSam
-     * @param output
+     * @param outputstreams
+     * @param outunaligned
+     *
+     * streams where to print unaligned bed intervals
+     *
      * @throws IOException
      */
-    private void writeThesaurusPassOne(SequenceMap seqmap, HashMap<String, OutputStream> outstreams) throws IOException {
+    private void writeThesaurusPassOne(SequenceMap seqmap,
+            HashMap<String, OutputStream> outstreams, OutputStream outunaligned) throws IOException {
 
         // process all the bam files in separate runnables/threads
         ExecutorService service = Executors.newFixedThreadPool(numthreads);
         for (File bamfile : bamfiles) {
-            service.submit(new ProcessRecordsPassOneRunnable(bamfile, seqmap, outstreams, minmapqual, theslog, ginfo));
+            service.submit(new ProcessRecordsPassOneRunnable(bamfile, seqmap, outstreams, outunaligned, minmapqual, theslog, ginfo));
         }
         // wait for all the computation to finish and exit
         try {
@@ -656,7 +664,7 @@ public class ThesaurusWrite extends ThesaurusMapTool {
 
     static void writeThesaurusHeader(OutputStream outstream, int minmapqual, String custom) throws IOException {
         StringBuilder header = new StringBuilder();
-        header.append("##GeneticThesaurus\n");        
+        header.append("##GeneticThesaurus\n");
         header.append(custom).append("\n");
         header.append(ThesaurusEntry.getHeader());
         outstream.write(header.toString().getBytes());
@@ -702,15 +710,18 @@ class ProcessRecordsPassOneRunnable implements Runnable {
     private final File bamfile;
     private final SequenceMap seqmap;
     private final HashMap<String, OutputStream> outstreams;
+    private final OutputStream outunaligned;
     private final int minmapqual;
     private final ThesaurusLog theslog;
     private final GenomeInfo ginfo;
 
     public ProcessRecordsPassOneRunnable(File bamfile, SequenceMap seqmap,
-            HashMap<String, OutputStream> outstreams, int minmapqual, ThesaurusLog theslog, GenomeInfo ginfo) {
+            HashMap<String, OutputStream> outstreams, OutputStream outunaligned,
+            int minmapqual, ThesaurusLog theslog, GenomeInfo ginfo) {
         this.bamfile = bamfile;
         this.seqmap = seqmap;
         this.outstreams = outstreams;
+        this.outunaligned = outunaligned;
         this.minmapqual = minmapqual;
         this.theslog = theslog;
         this.ginfo = ginfo;
@@ -726,17 +737,55 @@ class ProcessRecordsPassOneRunnable implements Runnable {
         inputSam.setValidationStringency(SAMFileReader.ValidationStringency.SILENT);
 
         for (final SAMRecord record : inputSam) {
-            int mapqual = record.getMappingQuality();
-            // only consider reads with a minimum mapping quality
-            // (this here is not a "real" mapping quality, but a proxy for number of mismatches)
-            if (mapqual >= minmapqual && !record.getReadUnmappedFlag()) {
-                // check that read is aligned                
-                processOneRecord(record);
+
+            if (record.getReadUnmappedFlag()) {
+                // if read is unaligned, output coordinates into a bed file
+                processOneUnalignedRecord(record);
+            } else {
+                // if aligned, then make thesaurus entries
+                int mapqual = record.getMappingQuality();
+                // only consider reads with a minimum mapping quality
+                // (this here is not a "real" mapping quality, but a proxy for number of mismatches)
+                if (mapqual >= minmapqual) {
+                    // check that read is aligned                
+                    processOneRecord(record);
+                }
             }
         }
 
         // and close the input file stream
         inputSam.close();
+    }
+
+    /**
+     * Converts a SAM record into a bed entry and outputs it straight away
+     *
+     * @param record
+     */
+    private void processOneUnalignedRecord(SAMRecord record) {
+
+        // output the alignment positions into a bed file
+        int start = record.getAlignmentStart() - 1;
+        int end = start + record.getReadLength();
+        String out = record.getReferenceName() + "\t" + start + "\t" + end + "\n";
+
+        synchronized (outunaligned) {
+            try {
+                outunaligned.write(out.getBytes());
+            } catch (Exception ex) {
+                System.out.println("Exception writing unaligned bed: " + ex.getMessage());
+            }
+        }
+
+        // create a dummy thesaurus entry
+        ThesaurusEntry entry = new ThesaurusEntry(record, ginfo);
+        // complete it (need to fix alignment end manually, then use function to get anchors set right)
+        entry.alignEnd = entry.originEnd;        
+        completeThesaurusEntry(entry, record);          
+        // set the origin chromosome to -1 to signal unaligned setup
+        entry.originChrIndex = -1;
+        outputThesaurusEntry(entry, outstreams.get(entry.getAlignChr()));
+                        
     }
 
     /**

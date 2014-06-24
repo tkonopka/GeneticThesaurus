@@ -98,11 +98,9 @@ class ThesaurusEntry {
             return;
         }
 
-        //alignChr = tokens[0];
         alignChrIndex = ginfo.getChrIndex(tokens[0]);
         alignStart = Integer.parseInt(tokens[1]);
         alignEnd = Integer.parseInt(tokens[2]);
-        //originChr = tokens[3];
         originChrIndex = ginfo.getChrIndex(tokens[3]);
         originStart = Integer.parseInt(tokens[4]);
         originEnd = Integer.parseInt(tokens[5]);
@@ -122,7 +120,11 @@ class ThesaurusEntry {
     }
 
     public String getOriginChr() {
-        return ginfo.getChrName(originChrIndex);
+        if (originChrIndex >= 0) {
+            return ginfo.getChrName(originChrIndex);
+        } else {
+            return "NA";
+        }
     }
 
     /**
@@ -601,7 +603,7 @@ class ThesaurusEntry {
         int numanchors = this.getNumAnchors();
         ArrayList<ThesaurusAnchor> tempanchors = new ArrayList<ThesaurusAnchor>(numanchors);
 
-        
+
         if (this.alignStrand == '+') {
             // for plus strand just reverse each anchor one at a time
             for (int i = 0; i < numanchors; i++) {
@@ -681,7 +683,7 @@ class ThesaurusEntry {
      */
     void extendLeft(SequenceMap seqmap, double errorrate, int maxinarow, int minalignstart) {
         // don't do anything if the sequancemap object is null
-        if (seqmap == null) {
+        if (seqmap == null || originChrIndex < 0) {
             return;
         }
 
@@ -787,7 +789,7 @@ class ThesaurusEntry {
      */
     void extendRight(SequenceMap seqmap, double errorrate, int maxinarow) {
         // don't do anything if the sequancemap object is null
-        if (seqmap == null) {
+        if (seqmap == null || originChrIndex < 0) {
             return;
         }
 

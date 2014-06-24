@@ -17,7 +17,6 @@ package thesaurus.make;
 
 import thesaurus.util.SNVPosition;
 import thesaurus.util.ThesaurusSAMRecord;
-import thesaurus.util.VCFEntrySet;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -26,6 +25,7 @@ import jsequtils.genome.GenomeInfo;
 import jsequtils.genome.GenomePositionComparator;
 import jsequtils.sequence.SequenceComplementer;
 import jsequtils.variants.VCFEntry;
+import jsequtils.variants.VCFEntrySet;
 
 /**
  * This is an important class for variant filtering, i.e. determing whether a
@@ -271,8 +271,7 @@ class ThesaurusSynonyms {
         if (thesentries == null) {
             return new ArrayList<SNVPosition>(2);
         }
-        int slen = thesentries.length;
-        int tlen = tbamrecords.length;
+        int slen = thesentries.length;        
         if (slen == 0) {
             return new ArrayList<SNVPosition>(2);
         }

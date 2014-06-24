@@ -17,7 +17,6 @@ package thesaurus.make;
 
 import thesaurus.util.ThesaurusLog;
 import thesaurus.util.ThesaurusIO;
-import thesaurus.util.VCFEntrySet;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -30,6 +29,7 @@ import jsequtils.file.OutputStreamMaker;
 import jsequtils.genome.GenomeInfo;
 import jsequtils.genome.GenomePositionComparator;
 import jsequtils.variants.VCFEntry;
+import jsequtils.variants.VCFEntrySet;
 
 /**
  * Tool to compare VCF files, one of which is annotated via a thesaurus object

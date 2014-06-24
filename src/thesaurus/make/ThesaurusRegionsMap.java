@@ -25,11 +25,11 @@ import jsequtils.file.BufferedReaderMaker;
 import jsequtils.genome.GenomeInfo;
 
 /**
- * A "buffered reader" for thesaurus tables. Assumes thesaurus file is sorted, 
- * allows users to query for entries overlapping loci. 
+ * A "buffered reader" for thesaurus tables. Assumes thesaurus file is sorted,
+ * allows users to query for entries overlapping loci.
  *
  * Similar to BamRegionsMap
- * 
+ *
  * all coordinates in the thesaurus file and in this map are 1-based.
  *
  * @author tkonopka
@@ -144,12 +144,12 @@ class ThesaurusRegionsMap {
      * not modify the entries output by this function.
      *
      * @return
-     * 
-     * @deprecated 
-     * 
+     *
+     * @deprecated
+     *
      * use getEntries(min, max) instead
-     * 
-     * 
+     *
+     *
      */
     @Deprecated
     private ThesaurusEntry[] getEntries() {
@@ -176,24 +176,24 @@ class ThesaurusRegionsMap {
     }
 
     /**
-     * Provided the object was loadedUpto() a position, this function can return an 
-     * array of thesaurus entries that overlap with the given interval. 
-     * 
-     * 
+     * Provided the object was loadedUpto() a position, this function can return
+     * an array of thesaurus entries that overlap with the given interval.
+     *
+     *
      * @param minpos
-     * 
+     *
      * starting position of interval
-     * 
+     *
      * @param maxpos
-     * 
+     *
      * maximum position of interval
-     * 
-     * 
-     * @return 
-     * 
+     *
+     *
+     * @return
+     *
      * array of entries overlapping with the interval, or null if no entries are
      * loaded.
-     * 
+     *
      */
     private ThesaurusEntry[] getEntries(int minpos, int maxpos) {
 
@@ -358,8 +358,6 @@ class ThesaurusRegionsMap {
 
         thesentry.finishInit();
         return true;
-
-
     }
 
     /**

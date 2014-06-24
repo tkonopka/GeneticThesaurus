@@ -134,7 +134,7 @@ public class GeneticThesaurus {
         } else if (args[0].equalsIgnoreCase("newgenome")) {
             new ThesaurusNewGenome(newargs).run();
 
-        } else if (args[0].equalsIgnoreCase("version")) {
+        } else if (args[0].equalsIgnoreCase("version") || args[0].equalsIgnoreCase("-version") || args[0].equalsIgnoreCase("--version")) {
             System.out.println("GeneticThesaurus v" + version);
         } else if (args[0].equalsIgnoreCase("help")) {
             printHelp();

@@ -18,7 +18,6 @@ package thesaurus.make;
 import thesaurus.util.ThesaurusLog;
 import thesaurus.util.ThesaurusIO;
 import thesaurus.util.ThesaurusSAMRecord;
-import thesaurus.util.VCFEntrySet;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -27,6 +26,7 @@ import joptsimple.OptionSet;
 import jsequtils.file.OutputStreamMaker;
 import jsequtils.genome.GenomeInfo;
 import jsequtils.variants.VCFEntry;
+import jsequtils.variants.VCFEntrySet;
 import net.sf.samtools.SAMRecord;
 
 /**

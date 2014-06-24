@@ -21,6 +21,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -57,6 +59,8 @@ public class ThesaurusAlign extends ThesaurusMapTool {
     private String output = "";
     // number of processor threads
     private int numthreads = 4;
+    // maximal number of alignments
+    private int toomany = 500;
     // for logging and progress tracking
     private int reportevery = 100000;
     ThesaurusLog theslog = new ThesaurusLog();
@@ -72,6 +76,7 @@ public class ThesaurusAlign extends ThesaurusMapTool {
         ThesaurusIO.printHelpItem("--mismatches <int>", "maximum number of mismatches allowed in alignments [default " + maxmismatches + "]");
         ThesaurusIO.printHelpItem("--earlength <int>", "ear length [default " + earlength + "]");
         ThesaurusIO.printHelpItem("--reportevery <int>", "print out progress every so many reads [default " + reportevery + "]");
+        ThesaurusIO.printHelpItem("--toomany <int>", "maximal number of alignments per read [default "+toomany+"]");
         ThesaurusIO.printHelpItem("--threads <int>", "number of processor threads");
         System.out.println();
     }
@@ -93,6 +98,7 @@ public class ThesaurusAlign extends ThesaurusMapTool {
         prs.accepts("earlength").withRequiredArg().ofType(Integer.class);
         prs.accepts("threads").withRequiredArg().ofType(Integer.class);
         prs.accepts("reportevery").withRequiredArg().ofType(Integer.class);
+        prs.accepts("toomany").withRequiredArg().ofType(Integer.class);
 
         // now use OptionSet to parse the command line
         OptionSet options;
@@ -127,6 +133,14 @@ public class ThesaurusAlign extends ThesaurusMapTool {
 
         if (options.has("reportevery")) {
             reportevery = Math.abs((int) (Integer) options.valueOf("reportevery"));
+        }
+
+        if (options.has("toomany")) {
+            toomany = (Integer) options.valueOf("toomany");
+            if (toomany < 1) {
+                System.out.println("Parameter must be greater than 0");
+                return false;
+            }
         }
 
         // check for input/output
@@ -172,18 +186,18 @@ public class ThesaurusAlign extends ThesaurusMapTool {
     @Override
     void runTool() {
 
-        FastaReader fr = null;
-        try {
-            fr = new FastaReader(genome);
-        } catch (Exception ex) {
-            System.out.println("Exception while creating genome fasta reader: " + ex.getMessage());
-            return;
-        }
+        //FastaReader fr = null;
+        //try {
+        //    fr = new FastaReader(genome);
+        //} catch (Exception ex) {
+        //    System.out.println("Exception while creating genome fasta reader: " + ex.getMessage());
+        //    return;
+        //}
 
         SAMFileHeader samheader = null;
         try {
             samheader = makeGenomeSAMFileHeader(genome, "thesalign");
-            samheader.addComment("Alignment by GenThesaurus - up to " + maxmismatches + " mismatches");
+            samheader.addComment("Alignment by GenThesaurus - up to " + maxmismatches + " mismatches and " + toomany + " close alignments");
         } catch (Exception ex) {
             System.out.println("Error making SAM file header");
             return;
@@ -193,22 +207,21 @@ public class ThesaurusAlign extends ThesaurusMapTool {
         alignSAM = new SAMFileWriterFactory().makeSAMOrBAMWriter(
                 samheader, true, new File(output + ".bam"));
 
-        theslog.log(true, "Starting alignment");
+        //while (fr.hasNext()) {
+        //    try {
+        //        fr.readNext(true);
+        //    } catch (IOException ex) {
+        //        System.out.println("Exception while reading the genome: " + ex.getMessage());
+        //    }
+        //    processOneChrom(fr.getChromosomeName(),
+        //            fr.getSequenceBase0(0, fr.getChromosomeLength()),
+        //            alignSAM, samheader);
+        //}
 
-        while (fr.hasNext()) {
-            try {
-                fr.readNext(true);
-            } catch (IOException ex) {
-                System.out.println("Exception while reading the genome: " + ex.getMessage());
-            }
-            processOneChrom(fr.getChromosomeName(),
-                    fr.getSequenceBase0(0, fr.getChromosomeLength()),
-                    alignSAM, samheader);
-        }
+        processWholeGenome(alignSAM, samheader);
 
-        fr.close();
-        alignSAM.close();
-        theslog.log(true, "done");
+        //fr.close();
+        alignSAM.close();        
     }
 
     /**
@@ -265,6 +278,7 @@ public class ThesaurusAlign extends ThesaurusMapTool {
      * header for SAM file (necessary for creating new SAM records)
      *
      */
+    @Deprecated
     private void processOneChrom(String chromname, byte[] chromseq,
             SAMFileWriter alignSAM, SAMFileHeader samheader) {
         // build an index for this chromsome
@@ -283,7 +297,7 @@ public class ThesaurusAlign extends ThesaurusMapTool {
         ExecutorService service = Executors.newFixedThreadPool(2 + numthreads);
         // add processes for reading fasta and outputing alignment, then fill the remaining
         // threads with threads that use the index to align
-        service.execute(new OneReadProducer(input, q1, reportevery));
+        service.execute(new OneReadProducer(input, q1, reportevery, theslog));
         for (int i = 0; i < numthreads; i++) {
             service.execute(new OneReadAligner(index, q1, q2, maxmismatches));
         }
@@ -298,6 +312,76 @@ public class ThesaurusAlign extends ThesaurusMapTool {
         }
 
     }
+
+    /**
+     *
+     * This function manages a producer/processor/reporter chain of threads that
+     * map reads from an input file onto a genome.
+     *
+     *
+     * @param alignSAM
+     *
+     * output SAM file writer
+     *
+     * @param samheader
+     *
+     * header for SAM file (necessary for creating new SAM records)
+     *
+     */
+    private void processWholeGenome(SAMFileWriter alignSAM, SAMFileHeader samheader) {
+
+        theslog.log(true, "Building genome index");
+
+        // open the fasta reader for the genome
+        FastaReader fr = null;
+        try {
+            fr = new FastaReader(genome);
+        } catch (Exception ex) {
+            System.out.println("Exception while creating genome fasta reader: " + ex.getMessage());
+            return;
+        }
+
+        // make a hashtable of EarIndexes
+        HashMap<String, ThesaurusEarIndex> genindex = new HashMap<String, ThesaurusEarIndex>();
+        while (fr.hasNext()) {
+            try {
+                fr.readNext(true);
+            } catch (IOException ex) {
+                System.out.println("Exception while reading the genome: " + ex.getMessage());
+            }
+            ThesaurusEarIndex chrindex = new ThesaurusEarIndex(fr.getChromosomeName(),
+                    fr.getSequenceBase0(0, fr.getChromosomeLength()), earlength);
+            genindex.put(fr.getChromosomeName(), chrindex);
+        }
+        fr.close();
+
+
+        theslog.log(true, "Starting alignment");
+
+        // queues for the various stages of the pipeline
+        BlockingQueue<OneRead> q1 = new LinkedBlockingQueue<OneRead>(8 * numthreads);
+        BlockingQueue<OneReadWithAlignment> q2 = new LinkedBlockingQueue<OneReadWithAlignment>(8 * numthreads);
+
+        // create service for producing, processing, and reporting alignments
+        ExecutorService service = Executors.newFixedThreadPool(2 + numthreads);
+        // add processes for reading fasta and outputing alignment, then fill the remaining
+        // threads with threads that use the index to align
+        service.execute(new OneReadProducer(input, q1, reportevery, theslog));
+        for (int i = 0; i < numthreads; i++) {
+            service.execute(new OneReadWholeGenomeAligner(genindex, q1, q2, earlength, maxmismatches, toomany));
+        }
+        service.execute(new OneReadWithAlignmentReporter(alignSAM, samheader, q2, numthreads));
+
+        // let all the threads finish and shutdown
+        try {
+            service.shutdown();
+            service.awaitTermination(100, java.util.concurrent.TimeUnit.DAYS);
+        } catch (Exception ex) {
+            System.out.println("Exception shutting down service: " + ex.getMessage());
+        }
+
+        theslog.log(true, "done");
+    }
 }
 
 /**
@@ -311,6 +395,7 @@ class OneReadProducer implements Runnable {
     private FastaReadReader frr = null;
     private final BlockingQueue<OneRead> queue;
     private final int reportevery;
+    private final ThesaurusLog theslog;
 
     /**
      *
@@ -328,9 +413,10 @@ class OneReadProducer implements Runnable {
      * get at least one poison pill)
      *
      */
-    public OneReadProducer(File input, BlockingQueue<OneRead> queue, int reportevery) {
+    public OneReadProducer(File input, BlockingQueue<OneRead> queue, int reportevery, ThesaurusLog theslog) {
         this.queue = queue;
         this.reportevery = reportevery;
+        this.theslog = theslog;
         try {
             frr = new FastaReadReader(input);
         } catch (Exception ex) {
@@ -361,7 +447,7 @@ class OneReadProducer implements Runnable {
 
                 counter++;
                 if (counter % reportevery == 0) {
-                    System.out.println(read.getReadname());
+                    theslog.log(true, "Read "+counter+" ("+read.getReadname()+")");                    
                 }
             }
 
@@ -440,6 +526,7 @@ class OneReadWithAlignmentReporter implements Runnable {
  *
  * @author tkonopka
  */
+@Deprecated
 class OneReadAligner implements Runnable {
 
     private final BlockingQueue<OneRead> inqueue;
@@ -447,12 +534,107 @@ class OneReadAligner implements Runnable {
     private final ThesaurusEarIndex index;
     private final int maxmismatches;
 
+    @Deprecated
     public OneReadAligner(ThesaurusEarIndex index, BlockingQueue<OneRead> inqueue,
             BlockingQueue<OneReadWithAlignment> outqueue, int maxmismatches) {
         this.inqueue = inqueue;
         this.outqueue = outqueue;
         this.index = index;
         this.maxmismatches = maxmismatches;
+    }
+
+    @Override
+    @Deprecated
+    public void run() {
+        try {
+            OneRead one;
+            while (true) {
+                one = inqueue.take();
+                if (one.isOk()) {
+                    alignAndOutputRead(one);
+                } else {
+                    // put it back! so that maybe other aligners can see it and also break                    
+                    inqueue.put(one);
+                    // Also send a poison pill to the report thread listing on outqueue
+                    outqueue.put(new OneReadWithAlignment());
+                    break;
+                }
+            }
+        } catch (Exception ex) {
+            System.out.println("Exception in readoutput: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * uses the index to produce candidate alignment positions. Then creates
+     * objects holding the read sequence and alignment setup, and pushes them
+     * onto the output queue.
+     *
+     * @param read
+     */
+    @Deprecated
+    public void alignAndOutputRead(OneRead read) {
+
+        // get some book-keeping variables
+        int readlen = read.readsequence.length;
+        int earlength = index.getEarlength();
+
+        // look at the start/end ear sequences
+        int startcode = index.getCode(read.readsequence, 0, earlength);
+        int endcode = index.getCode(read.readsequence, readlen - earlength, readlen);
+
+        if (startcode < 0 || endcode < 0) {
+            return;
+        }
+
+        // look for alignments of the read on the positive strand
+        ArrayList<Integer> alignplus = index.alignSequence(read.readsequence, maxmismatches);
+        ArrayList<Integer> alignminus = index.alignSequence(SequenceComplementer.complement(read.readsequence), maxmismatches);
+
+        // output the alignments onto the queue
+        try {
+            for (int i = 0; i < alignplus.size(); i += 2) {
+                int astart = alignplus.get(i);
+                int mapqual = alignplus.get(i + 1);
+                OneReadWithAlignment onewitha = new OneReadWithAlignment(read, index.getSeqname(), astart, mapqual, false);
+                outqueue.put(onewitha);
+            }
+            for (int i = 0; i < alignminus.size(); i += 2) {
+                int astart = alignminus.get(i);
+                int mapqual = alignminus.get(i + 1);
+                OneReadWithAlignment onewitha = new OneReadWithAlignment(read, index.getSeqname(), astart, mapqual, true);
+                outqueue.put(onewitha);
+            }
+        } catch (Exception ex) {
+            System.out.println("Exception while putting alignments onto queue: " + ex.getMessage());
+        }
+
+    }
+}
+
+/**
+ * Runnable that will look at individual reads and align them using an index of
+ * ears and sequence of the chromosome
+ *
+ * @author tkonopka
+ */
+class OneReadWholeGenomeAligner implements Runnable {
+
+    private final BlockingQueue<OneRead> inqueue;
+    private final BlockingQueue<OneReadWithAlignment> outqueue;
+    private final HashMap<String, ThesaurusEarIndex> genindex;
+    private final int earlength;
+    private final int maxmismatches;
+    private final int toomany;
+
+    public OneReadWholeGenomeAligner(HashMap<String, ThesaurusEarIndex> genindex, BlockingQueue<OneRead> inqueue,
+            BlockingQueue<OneReadWithAlignment> outqueue, int earlength, int maxmismatches, int toomany) {
+        this.earlength = earlength;
+        this.inqueue = inqueue;
+        this.outqueue = outqueue;
+        this.genindex = genindex;
+        this.maxmismatches = maxmismatches;
+        this.toomany = toomany;
     }
 
     @Override
@@ -487,36 +669,74 @@ class OneReadAligner implements Runnable {
 
         // get some book-keeping variables
         int readlen = read.readsequence.length;
-        int earlength = index.getEarlength();
 
-        // look at the start/end ear sequences
-        int startcode = index.getCode(read.readsequence, 0, earlength);
-        int endcode = index.getCode(read.readsequence, readlen - earlength, readlen);
+        // keep track of all alignments for the read
+        ArrayList<OneReadWithAlignment> alignments = new ArrayList<OneReadWithAlignment>(128);
+        // keep track of very close alignments (to avoid computing too many close alignments)
+        int numclose = 0;
 
-        if (startcode < 0 || endcode < 0) {
-            return;
+        // get read sequence and its complement
+        byte[] seq = read.readsequence;
+        byte[] seqcomp = SequenceComplementer.complement(read.readsequence);
+
+        for (Map.Entry<String, ThesaurusEarIndex> entry : genindex.entrySet()) {
+            String nowchr = entry.getKey();
+            ThesaurusEarIndex chrindex = entry.getValue();
+
+            // look at the start/end ear sequences
+            int startcode = chrindex.getCode(read.readsequence, 0, earlength);
+            int endcode = chrindex.getCode(read.readsequence, readlen - earlength, readlen);
+
+            // process only when ear codes are acceptable (non-zero)
+            if (startcode >= 0 && endcode >= 0) {
+
+                // look for alignments of the read on the positive strand
+                ArrayList<Integer> alignplus = chrindex.alignSequence(seq, maxmismatches);
+                ArrayList<Integer> alignminus = chrindex.alignSequence(seqcomp, maxmismatches);
+
+                // convert the alignment positions into object holding read and alignment               
+                for (int i = 0; i < alignplus.size(); i += 2) {
+                    int astart = alignplus.get(i);
+                    int mapqual = alignplus.get(i + 1);
+                    OneReadWithAlignment onewitha = new OneReadWithAlignment(read, nowchr, astart, mapqual, false);
+                    alignments.add(onewitha);
+                    if (mapqual >= readlen - 1) {
+                        numclose++;
+                    }
+                }
+                for (int i = 0; i < alignminus.size(); i += 2) {
+                    int astart = alignminus.get(i);
+                    int mapqual = alignminus.get(i + 1);
+                    OneReadWithAlignment onewitha = new OneReadWithAlignment(read, nowchr, astart, mapqual, true);
+                    alignments.add(onewitha);
+                    if (mapqual >= readlen - 1) {
+                        numclose++;
+                    }
+                }
+            }
+
+            // avoid work if there are too many alignemnts
+            if (numclose > toomany) {
+                break;
+            }
         }
 
-        // look for alignments of the read on the positive strand
-        ArrayList<Integer> alignplus = index.alignSequence(read.readsequence, maxmismatches);
-        ArrayList<Integer> alignminus = index.alignSequence(SequenceComplementer.complement(read.readsequence), maxmismatches);
-                
-        // output the alignments onto the queue
+        // when there are too many good alignments, give up reporting them individually.
+        // Instead, output a read that has an unaligned flag.
+        if (numclose > toomany) {
+            alignments.clear();
+            alignments.add(new OneReadWithAlignment(read));            
+        }
+
+        // place alignemnts onto the output queue. 
+        // The alignemnt are now in the array "alignments"
         try {
-            for (int i = 0; i < alignplus.size(); i += 2) {
-                int astart = alignplus.get(i);
-                int mapqual = alignplus.get(i + 1);
-                OneReadWithAlignment onewitha = new OneReadWithAlignment(read, index.getSeqname(), astart, mapqual, false);
-                outqueue.put(onewitha);
-            }
-            for (int i = 0; i < alignminus.size(); i += 2) {
-                int astart = alignminus.get(i);
-                int mapqual = alignminus.get(i + 1);
-                OneReadWithAlignment onewitha = new OneReadWithAlignment(read, index.getSeqname(), astart, mapqual, true);
-                outqueue.put(onewitha);
+            for (int i = 0; i < alignments.size(); i++) {
+                outqueue.put(alignments.get(i));
             }
         } catch (Exception ex) {
             System.out.println("Exception while putting alignments onto queue: " + ex.getMessage());
+            System.out.println("read: " + read.readname);
         }
 
     }
@@ -595,6 +815,7 @@ class OneReadWithAlignment extends OneRead {
     final private int alignpos;
     final private int mappingquality;
     final private boolean negativestrand;
+    final private boolean unmapped;
 
     public OneReadWithAlignment() {
         super();
@@ -602,6 +823,24 @@ class OneReadWithAlignment extends OneRead {
         alignpos = -1;
         mappingquality = -1;
         negativestrand = true;
+        unmapped = true;
+    }
+
+    /**
+     * creates a read object where the alignment position is obtained from the
+     * read name. Important: The unmapped flag is set, so a SAMRecord obtained
+     * from this read will contain a special flag.
+     *
+     * @param read
+     */
+    public OneReadWithAlignment(OneRead read) {
+        super(read.readname, read.readsequence);
+        String[] nametokens = getReadname().split(";|:|-");
+        this.chrom = nametokens[1];
+        alignpos = Integer.parseInt(nametokens[2]) - 1;
+        mappingquality = 0;
+        negativestrand = false;
+        unmapped = true;
     }
 
     public OneReadWithAlignment(OneRead read, String chrom, int alignpos,
@@ -611,6 +850,7 @@ class OneReadWithAlignment extends OneRead {
         this.alignpos = alignpos;
         this.mappingquality = mappingquality;
         this.negativestrand = negativestrand;
+        this.unmapped = false;
     }
 
     private String makeBaseQuality(int size) {
@@ -645,9 +885,10 @@ class OneReadWithAlignment extends OneRead {
 
         // set flags for a neutral read
         sr.setFlags(0);
-        sr.setNotPrimaryAlignmentFlag(!isPrimary());
         sr.setReadName(getReadname());
-        sr.setReadBases(readsequence);
+        sr.setBaseQualityString(makeBaseQuality(readsequence.length));
+        sr.setAttribute("RG", "thesalign");
+        sr.setNotPrimaryAlignmentFlag(!isPrimary());
         sr.setAlignmentStart(alignpos + 1);
         sr.setCigarString(readsequence.length + "M");
         sr.setReferenceName(chrom);
@@ -659,8 +900,11 @@ class OneReadWithAlignment extends OneRead {
             sr.setReadNegativeStrandFlag(false);
             sr.setReadBases(readsequence);
         }
-        sr.setBaseQualityString(makeBaseQuality(readsequence.length));
-        sr.setAttribute("RG", "thesalign");
+
+        // perhaps the read is unaligned (too many alignments to report)
+        if (unmapped) {
+            sr.setReadUnmappedFlag(unmapped);
+        }
 
         return sr;
     }

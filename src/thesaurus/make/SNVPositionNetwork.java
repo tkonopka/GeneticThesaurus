@@ -16,13 +16,14 @@
 package thesaurus.make;
 
 import thesaurus.util.SNVPosition;
-import thesaurus.util.VCFEntrySet;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import jsequtils.genome.GenomeInfo;
 import jsequtils.genome.GenomePositionComparator;
+import jsequtils.variants.VCFEntrySet;
+
 
 /**
  *
