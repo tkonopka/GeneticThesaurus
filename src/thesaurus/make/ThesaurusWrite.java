@@ -85,9 +85,9 @@ public class ThesaurusWrite extends ThesaurusMapTool {
     //advanced features - allows to skip pass 1 or pass 2 (useful when one fails)
     private boolean skip1 = false, skip2 = false;
     ThesaurusLog theslog = new ThesaurusLog();
-    // bucketspacing is used when sorting chromosome files
+    // diskbucketsize is used when sorting chromosome files
     // records are distributed into buckets of these many bases
-    private final int bucketspacing = 1000000;
+    private int diskbucketsize = 1000000;
 
     private void printWriteHelp() {
         System.out.println("GeneticThesaurus write: write a thesaurus of genetic variation");
@@ -102,6 +102,7 @@ public class ThesaurusWrite extends ThesaurusMapTool {
         ThesaurusIO.printHelpItem("--readlen <int>", "readlength of aligned reads");
         ThesaurusIO.printHelpItem("--skip1", "skip pass one, go directly to pass 2");
         ThesaurusIO.printHelpItem("--skip2", "skip pass two");
+        ThesaurusIO.printHelpItem("--bucket", "size of bucket for disk sorting [default "+diskbucketsize+"]");
         ThesaurusIO.printHelpItem("--threads <int>", "number of threads used in pass 1");
         System.out.println();
     }
@@ -185,6 +186,7 @@ public class ThesaurusWrite extends ThesaurusMapTool {
         prs.accepts("maxpenalty").withRequiredArg().ofType(Integer.class);
         prs.accepts("readlen").withRequiredArg().ofType(Integer.class);
         prs.accepts("threads").withRequiredArg().ofType(Integer.class);
+        prs.accepts("bucket").withRequiredArg().ofType(Integer.class);
 
         prs.accepts("skip1");
         prs.accepts("skip2");
@@ -256,6 +258,14 @@ public class ThesaurusWrite extends ThesaurusMapTool {
             numthreads = (Integer) options.valueOf("threads");
             if (numthreads < 1) {
                 System.out.println("threads must be >= 1");
+                return false;
+            }
+        }
+        
+        if (options.has("bucket")) {
+            diskbucketsize = (Integer) options.valueOf("bucket");
+            if (diskbucketsize < 100000) {
+                System.out.println("bucket must be >= 100000");
                 return false;
             }
         }
@@ -369,7 +379,7 @@ public class ThesaurusWrite extends ThesaurusMapTool {
 
         // find out the number of buckets for this chromosome
         int chrlen = ginfo.getChrLength(chr);
-        int numbuckets = 1 + (chrlen / bucketspacing);
+        int numbuckets = 1 + (chrlen / diskbucketsize);
 
         // keep track of how many items were put into each bucket
         int[] bucketsize = new int[numbuckets];
@@ -391,7 +401,7 @@ public class ThesaurusWrite extends ThesaurusMapTool {
         ExecutorService service = Executors.newFixedThreadPool(numthreads);
         BlockingQueue<StringBucket> queue = new LinkedBlockingQueue<StringBucket>(32 * numthreads);
         for (int i = 0; i < numthreads; i++) {
-            service.submit(new DistributeRecordsPassTwoRunnable(outbuckets, queue, bucketspacing));
+            service.submit(new DistributeRecordsPassTwoRunnable(outbuckets, queue, diskbucketsize));
         }
 
         File rawfile = new File(output + "." + chr + ".raw.tsv.gz");
@@ -402,7 +412,7 @@ public class ThesaurusWrite extends ThesaurusMapTool {
                 if (!ss.startsWith("#") && !ss.startsWith("Align.chr")) {
                     StringBucket entry = new StringBucket(ss);
                     queue.put(entry);
-                    int nowbucket = entry.val / bucketspacing;
+                    int nowbucket = entry.val / diskbucketsize;
                     bucketsize[nowbucket]++;
                 }
             }
@@ -433,7 +443,7 @@ public class ThesaurusWrite extends ThesaurusMapTool {
         for (int i = 0; i < numbuckets; i++) {
             File bucketfile;
             bucketfile = new File(tempoutput + "." + chr + "." + i + ".tsv");
-            int minalignstart = 1 + (i * bucketspacing);
+            int minalignstart = 1 + (i * diskbucketsize);
             summarizeFromBucket(bucketfile, bucketsize[i], minalignstart, outstream, seqmap);
             bucketfile.delete();
             System.gc();
