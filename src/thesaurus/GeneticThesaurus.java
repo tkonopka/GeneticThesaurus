@@ -26,6 +26,7 @@ import thesaurus.make.ThesaurusDetails;
 import thesaurus.make.ThesaurusFilter;
 import thesaurus.make.ThesaurusWrite;
 import thesaurus.make.ThesaurusMerge2Chrom;
+import thesaurus.make.ThesaurusRandomVTF;
 import thesaurus.misc.ThesaurusReorder;
 import thesaurus.network.ThesaurusNetwork;
 import thesaurus.misc.ThesaurusSubset;
@@ -75,6 +76,7 @@ public class GeneticThesaurus {
         System.out.println("  countpatterns            - count items matching pairs of patterns");
         System.out.println("  details                  - get details on loci");
         System.out.println("  merge2chrom              - merge many bam files and automatically split by chromosome");
+        System.out.println("  randomVTF                - generate a random vtf file");
         System.out.println("  subset                   - create a smaller thesaurus file");
         System.out.println("  summarize                - create bed or coverage files from a thesaurus file");
         System.out.println("  version                  - version");
@@ -121,6 +123,8 @@ public class GeneticThesaurus {
             new ThesaurusNetwork(newargs).run();
         } else if (args[0].equalsIgnoreCase("details")) {
             new ThesaurusDetails(newargs).run();
+        } else if (args[0].equalsIgnoreCase("randomVTF")) {
+            new ThesaurusRandomVTF(newargs).run();
         } else if (args[0].equalsIgnoreCase("reorder")) {
             new ThesaurusReorder(newargs).run();
         } else if (args[0].equalsIgnoreCase("subset")) {

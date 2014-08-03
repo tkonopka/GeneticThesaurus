@@ -890,7 +890,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         // read and copy vcf file header from the original file
         StringBuilder header = new StringBuilder();
         header.append("##Variant Thesaurus File\n");
-        header.append("##Processed by Thesaurus ").append(GeneticThesaurus.getVersion()).append("\n");
+        header.append("##Processed by GeneticThesaurus ").append(GeneticThesaurus.getVersion()).append("\n");
         header.append("##Matching filtered variant call file ").append(output).append(".vcf\n");
         header.append("##Format: position in vcf file, followed by thesaurus synonyms, separated by tabs\n");
         outvtf.write(header.toString().getBytes());
