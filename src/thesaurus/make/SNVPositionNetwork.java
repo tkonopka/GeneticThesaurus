@@ -24,9 +24,10 @@ import jsequtils.genome.GenomeInfo;
 import jsequtils.genome.GenomePositionComparator;
 import jsequtils.variants.VCFEntrySet;
 
-
 /**
- *
+ * A data structure holding a list of genome positions and links to other genome positions.
+ * 
+ * 
  * @author tkonopka
  */
 public class SNVPositionNetwork {
@@ -41,11 +42,11 @@ public class SNVPositionNetwork {
         this.ginfo = ginfo;
         this.gcomp = new GenomePositionComparator();
         int numcalled = calledvars.size();
-        network = new HashMap<String, SNVPositionNode>(2*numcalled);
-        for (int i = 0; i < numcalled; i++) {            
-            SNVPositionNode newnode = new SNVPositionNode(new SNVPosition(calledvars.getVariant(i), ginfo), true);            
-            String nodestring = newnode.getSNVPositionString();            
-            network.put(nodestring, newnode);            
+        network = new HashMap<String, SNVPositionNode>(2 * numcalled);
+        for (int i = 0; i < numcalled; i++) {
+            SNVPositionNode newnode = new SNVPositionNode(new SNVPosition(calledvars.getVariant(i), ginfo), true);
+            String nodestring = newnode.getSNVPositionString();
+            network.put(nodestring, newnode);
         }
     }
 
@@ -71,11 +72,11 @@ public class SNVPositionNetwork {
             SNVPositionNode tonode = network.get(tostring);
             if (tonode == null) {
                 tonode = new SNVPositionNode(new SNVPosition(to.get(i)), false);
-                network.put(tostring, tonode);                
+                network.put(tostring, tonode);
             }
             tonodes.add(tonode);
         }
-        
+
         // add link information 
         fromnode.setNeighbors(tonodes, gcomp);
 
@@ -93,25 +94,25 @@ public class SNVPositionNetwork {
     public int size() {
         return network.size();
     }
-    
+
     public ArrayList<SNVPosition> getAllNodes() {
         ArrayList<SNVPosition> ans = new ArrayList<SNVPosition>(network.size());
-        for (Map.Entry<String, SNVPositionNode> entry: network.entrySet()) {
+        for (Map.Entry<String, SNVPositionNode> entry : network.entrySet()) {
             SNVPositionNode nownode = entry.getValue();
             ans.add(nownode.snv);
         }
         Collections.sort(ans, gcomp);
         return ans;
     }
-    
-    public ArrayList<SNVPosition> getNeighborNodes(SNVPosition from) {        
+
+    public ArrayList<SNVPosition> getNeighborNodes(SNVPosition from) {
         SNVPositionNode nownode = network.get(from.toString());
-        int numnei = nownode.getNumNeighbors();        
+        int numnei = nownode.getNumNeighbors();
         ArrayList<SNVPosition> ans = new ArrayList<SNVPosition>(numnei);
-        for (int i=0; i<numnei; i++) {
+        for (int i = 0; i < numnei; i++) {
             SNVPositionNode nownei = nownode.getNeighbor(i);
             ans.add(new SNVPosition(nownei.snv));
         }
-        return ans;        
+        return ans;
     }
 }

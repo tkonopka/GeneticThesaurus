@@ -26,12 +26,12 @@ import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMRecordIterator;
 
 /**
- * A "buffered reader" for bam files. Assumes bam file is sorted, allows users to query
- * for reads aligning onto loci. 
- * 
+ * A "buffered reader" for bam files. Assumes bam file is sorted, allows users
+ * to query for reads aligning onto loci.
+ *
  * Similar to ThesaurusRegionsMap.
- * 
- * 
+ *
+ *
  * @author tkonopka
  */
 class BamRegionsMap {
@@ -261,7 +261,7 @@ class BamRegionsMap {
 
         if (chr.equals(curchr)) {
             // clean up all map regions up to the locus
-            for (int i = uptoposition; i < position && !regions.isEmpty(); i++) {                
+            for (int i = uptoposition; i < position && !regions.isEmpty(); i++) {
                 regions.remove(i);
             }
         } else {

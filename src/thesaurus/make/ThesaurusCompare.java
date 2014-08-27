@@ -210,13 +210,13 @@ public class ThesaurusCompare extends ThesaurusMapTool {
      * true if the filterfield contain filtername as a filter
      *
      */
-    private boolean hasFilter(String filterfield, String filtername) {        
+    private boolean hasFilter(String filterfield, String filtername) {
         String[] tokens = filterfield.split(";");
         for (int i = 0; i < tokens.length; i++) {
-            if (filtername.equals(tokens[i])) {                
+            if (filtername.equals(tokens[i])) {
                 return true;
             }
-        }        
+        }
         return false;
     }
 
@@ -263,7 +263,7 @@ public class ThesaurusCompare extends ThesaurusMapTool {
         outFP.write(vcffileheader.getBytes());
         outTPthes.write(vcffileheader.getBytes());
         outlog.write(logExplanation().getBytes());
-        
+
         while (vcfline != null) {
             VCFEntry nowentry = new VCFEntry(vcfline, ginfo);
             if (!nowentry.isIndel()) {
@@ -278,7 +278,7 @@ public class ThesaurusCompare extends ThesaurusMapTool {
                 }
 
                 // check for thesaurus status anyway (to keep synonyms on track)                
-                if (hasFilter(nowentry.getFilter(), "thesaurus") && synonymsfile != null) {                    
+                if (hasFilter(nowentry.getFilter(), "thesaurus") && synonymsfile != null) {
                     // check that the synonyms are synced with the vcf file
                     String entrycode = vcfEntryString(nowentry);
                     String[] synonyms = synline.split("\t");

@@ -76,7 +76,7 @@ public class ThesaurusAlign extends ThesaurusMapTool {
         ThesaurusIO.printHelpItem("--mismatches <int>", "maximum number of mismatches allowed in alignments [default " + maxmismatches + "]");
         ThesaurusIO.printHelpItem("--earlength <int>", "ear length [default " + earlength + "]");
         ThesaurusIO.printHelpItem("--reportevery <int>", "print out progress every so many reads [default " + reportevery + "]");
-        ThesaurusIO.printHelpItem("--toomany <int>", "maximal number of alignments per read [default "+toomany+"]");
+        ThesaurusIO.printHelpItem("--toomany <int>", "maximal number of alignments per read [default " + toomany + "]");
         ThesaurusIO.printHelpItem("--threads <int>", "number of processor threads");
         System.out.println();
     }
@@ -221,7 +221,7 @@ public class ThesaurusAlign extends ThesaurusMapTool {
         processWholeGenome(alignSAM, samheader);
 
         //fr.close();
-        alignSAM.close();        
+        alignSAM.close();
     }
 
     /**
@@ -447,7 +447,7 @@ class OneReadProducer implements Runnable {
 
                 counter++;
                 if (counter % reportevery == 0) {
-                    theslog.log(true, "Read "+counter+" ("+read.getReadname()+")");                    
+                    theslog.log(true, "Read " + counter + " (" + read.getReadname() + ")");
                 }
             }
 
@@ -725,7 +725,7 @@ class OneReadWholeGenomeAligner implements Runnable {
         // Instead, output a read that has an unaligned flag.
         if (numclose > toomany) {
             alignments.clear();
-            alignments.add(new OneReadWithAlignment(read));            
+            alignments.add(new OneReadWithAlignment(read));
         }
 
         // place alignemnts onto the output queue. 

@@ -102,7 +102,7 @@ public class ThesaurusWrite extends ThesaurusMapTool {
         ThesaurusIO.printHelpItem("--readlen <int>", "readlength of aligned reads");
         ThesaurusIO.printHelpItem("--skip1", "skip pass one, go directly to pass 2");
         ThesaurusIO.printHelpItem("--skip2", "skip pass two");
-        ThesaurusIO.printHelpItem("--bucket", "size of bucket for disk sorting [default "+diskbucketsize+"]");
+        ThesaurusIO.printHelpItem("--bucket", "size of bucket for disk sorting [default " + diskbucketsize + "]");
         ThesaurusIO.printHelpItem("--threads <int>", "number of threads used in pass 1");
         System.out.println();
     }
@@ -216,8 +216,8 @@ public class ThesaurusWrite extends ThesaurusMapTool {
             for (int i = 0; i < bamfiles.size(); i++) {
                 File nowfile = bamfiles.get(i);
                 if (!nowfile.exists() | !nowfile.canRead()) {
-                    //System.out.println("Cannot read input bam file: " + nowfile.getAbsolutePath());
-                    //failbamtest = true;
+                    System.out.println("Cannot read input bam file: " + nowfile.getAbsolutePath());
+                    failbamtest = true;
                 }
             }
             if (failbamtest) {
@@ -261,7 +261,7 @@ public class ThesaurusWrite extends ThesaurusMapTool {
                 return false;
             }
         }
-        
+
         if (options.has("bucket")) {
             diskbucketsize = (Integer) options.valueOf("bucket");
             if (diskbucketsize < 100000) {
@@ -790,12 +790,12 @@ class ProcessRecordsPassOneRunnable implements Runnable {
         // create a dummy thesaurus entry
         ThesaurusEntry entry = new ThesaurusEntry(record, ginfo);
         // complete it (need to fix alignment end manually, then use function to get anchors set right)
-        entry.alignEnd = entry.originEnd;        
-        completeThesaurusEntry(entry, record);          
+        entry.alignEnd = entry.originEnd;
+        completeThesaurusEntry(entry, record);
         // set the origin chromosome to -1 to signal unaligned setup
         entry.originChrIndex = -1;
         outputThesaurusEntry(entry, outstreams.get(entry.getAlignChr()));
-                        
+
     }
 
     /**

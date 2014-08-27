@@ -148,7 +148,7 @@ public class ThesaurusCheck extends ThesaurusMapTool {
         GenomeInfo ginfo = null;
         try {
             ginfo = new GenomeInfo(genome);
-            teac = new ThesaurusEntryAlignComparator();            
+            teac = new ThesaurusEntryAlignComparator();
         } catch (Exception ex) {
             System.out.println("Failed to load genomic position comparator: " + ex.getMessage());
             return;

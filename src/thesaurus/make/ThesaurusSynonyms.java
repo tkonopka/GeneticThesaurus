@@ -31,8 +31,8 @@ import jsequtils.variants.VCFEntrySet;
  * This is an important class for variant filtering, i.e. determing whether a
  * variant can be linked with another genomic position via the thesaurus.
  *
- * Calculates the alternate loci based for a variant given reads that overlap the variant
- * and a set of thesaurus entries.
+ * Calculates the alternate loci based for a variant given reads that overlap
+ * the variant and a set of thesaurus entries.
  *
  * @author tkonopka
  */
@@ -137,15 +137,15 @@ class ThesaurusSynonyms {
 
         if (tbamrecords == null) {
             synonyms = computeAllSynonymousPositionsNoBam();
-        } else {            
+        } else {
             // use precomputed information to get a list of synonymous loci
             synonyms = computeAllSynonymousPositions(tbamrecords, hitcount, hitproportion,
-                    tolerance, maxtolerance, maxtolerance, chrbitset);            
-            if (synonyms != null && synonyms.size() >= many && maxtolerance - 1 >= 0) {                
+                    tolerance, maxtolerance, maxtolerance, chrbitset);
+            if (synonyms != null && synonyms.size() >= many && maxtolerance - 1 >= 0) {
                 synonyms = computeAllSynonymousPositions(tbamrecords, hitcount, hitproportion,
                         tolerance, Math.max(tolerance, maxtolerance - 1), maxtolerance, chrbitset);
             }
-        }        
+        }
         return synonyms;
     }
 
@@ -271,7 +271,7 @@ class ThesaurusSynonyms {
         if (thesentries == null) {
             return new ArrayList<SNVPosition>(2);
         }
-        int slen = thesentries.length;        
+        int slen = thesentries.length;
         if (slen == 0) {
             return new ArrayList<SNVPosition>(2);
         }

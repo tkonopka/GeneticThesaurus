@@ -27,7 +27,7 @@ import java.util.prefs.Preferences;
  * @author tkonopka
  */
 public abstract class ThesaurusMapTool implements Runnable {
-    
+
     File genome;
     int divisor;
     int offset;
@@ -57,10 +57,7 @@ public abstract class ThesaurusMapTool implements Runnable {
         divisor = prefs.getInt("divisor", GeneticThesaurus.DEFAULT_DIVISOR);
         penalty = prefs.getInt("penalty", GeneticThesaurus.DEFAULT_PENALTY);
         offset = prefs.getInt("offset", GeneticThesaurus.DEFAULT_OFFSET);
-        readlen = prefs.getInt("readlen", GeneticThesaurus.DEFAULT_READLEN);
-        //keeppsl = prefs.getBoolean("keeppsl", GenThesaurus.DEFAULT_KEEPPSL);
-        //blatpath = prefs.get("blatpath", GenThesaurus.DEFAULT_BLATPATH);
-        //blatoptions = prefs.get("blatoptions", GenThesaurus.DEFAULT_BLATOPTIONS);
+        readlen = prefs.getInt("readlen", GeneticThesaurus.DEFAULT_READLEN);        
     }
 
     @Override

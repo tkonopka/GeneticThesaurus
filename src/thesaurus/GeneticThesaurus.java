@@ -16,6 +16,7 @@
 package thesaurus;
 
 import thesaurus.make.ThesaurusAlign;
+import thesaurus.make.ThesaurusAnnotateVtf;
 import thesaurus.misc.ThesaurusCountPatterns;
 import thesaurus.misc.ThesaurusNewGenome;
 import thesaurus.make.ThesaurusSummarize;
@@ -46,10 +47,7 @@ public class GeneticThesaurus {
     public static final int DEFAULT_OFFSET = 0;
     public static final int DEFAULT_PENALTY = 10;
     public static final String DEFAULT_GENOME = "NA";
-    //public static final String DEFAULT_BLATPATH = "blat";
-    //public static final String DEFAULT_BLATOPTIONS = "-t=dna -tileSize=12 -minMatch=3 -minScore=90 -noHead -repMatch=1024";
-    //public static final Boolean DEFAULT_KEEPPSL = false;
-
+    
     public static String getVersion() {
         return version;
     }
@@ -66,6 +64,7 @@ public class GeneticThesaurus {
         System.out.println("  write                    - use bam files to write a thesaurus");
 
         System.out.println("\nUsing a thesaurus:");
+        System.out.println("  annotatevtf              - add ids (eg. dbSNP) to a vtf file");
         System.out.println("  compare                  - compare vcf files annotated with thesaurus");
         System.out.println("  filter                   - annotate vcf file using thesaurus");
         System.out.println("  network                  - network analysis of thesaurus-annotated calls");
@@ -119,6 +118,8 @@ public class GeneticThesaurus {
             new ThesaurusSummarize(newargs).run();
         } else if (args[0].equalsIgnoreCase("filter")) {
             new ThesaurusFilter(newargs).run();
+        } else if (args[0].equalsIgnoreCase("annotatevtf")) {
+            new ThesaurusAnnotateVtf(newargs).run();
         } else if (args[0].equalsIgnoreCase("network")) {
             new ThesaurusNetwork(newargs).run();
         } else if (args[0].equalsIgnoreCase("details")) {

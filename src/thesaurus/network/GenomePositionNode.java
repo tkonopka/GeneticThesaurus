@@ -23,10 +23,11 @@ import jsequtils.genome.GenomePositionComparator;
 import jsequtils.genome.GenomePositionInterface;
 
 /**
- * Meant to work with GenomePositionNetwork. Stores a node of a graph. The node represents
- * a genome position and the edges are Thesarus links to other positions.
- * 
- * 
+ * Meant to work with GenomePositionNetwork. Stores a node of a graph. The node
+ * represents a genome position and the edges are Thesarus links to other
+ * positions.
+ *
+ *
  * @author tkonopka
  */
 public class GenomePositionNode implements GenomePositionInterface {

@@ -30,8 +30,8 @@ import net.sf.samtools.SAMRecord;
 /**
  * A wrapper for SAMRecord which provides some extra functionality. It allows
  * user to extract a base given a genomic position, which is not directly
- * possible from the SAMRecord. It also enables counting mismatches and modifying the record
- * (soft clipping ends)
+ * possible from the SAMRecord. It also enables counting mismatches and
+ * modifying the record (soft clipping ends)
  *
  * @author tkonopka
  */
@@ -304,7 +304,7 @@ public class ThesaurusSAMRecord {
         }
         return false;
     }
-    
+
     /**
      * Calculate the number of mismatches between the read sequence and the
      * reference sequence
@@ -597,47 +597,47 @@ public class ThesaurusSAMRecord {
         }
         return sb.toString();
     }
-    
+
     /**
-     * 
-     * @return 
-     * 
+     *
+     * @return
+     *
      * mate information as reported in the SAM record
      */
-    public String getMateChr() {        
+    public String getMateChr() {
         return record.getMateReferenceName();
     }
-    
+
     /**
-     * 
-     * @return 
-     * 
+     *
+     * @return
+     *
      * mate information recorded in the SAM record
-     * 
+     *
      */
     public int getMateStart() {
         return record.getMateAlignmentStart();
     }
-    
+
     /**
-     * 
-     * @return 
-     * 
+     *
+     * @return
+     *
      * number of bases in the read
-     * 
+     *
      */
     public int getReadLength() {
         return bases.length;
     }
-            
-    public boolean hasMate() {      
-        return record.getReadPairedFlag();                    
+
+    public boolean hasMate() {
+        return record.getReadPairedFlag();
     }
-    
+
     public int getReferenceIndex() {
         return record.getReferenceIndex();
     }
-    
+
     public int getMateReferenceIndex() {
         return record.getMateReferenceIndex();
     }

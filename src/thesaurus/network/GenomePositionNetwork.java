@@ -30,11 +30,12 @@ import jsequtils.genome.GenomePositionComparator;
 import jsequtils.variants.VcfEntry;
 
 /**
- * A data structure that holds a graph of interconnected genomic positions. In contrast 
- * to a standard/simple graph, this one provides some functions are that specific to 
- * a Thesaurus graph (determine the number of clusters among called variants)
- * 
- * 
+ * A data structure that holds a graph of interconnected genomic positions. In
+ * contrast to a standard/simple graph, this one provides some functions are
+ * that specific to a Thesaurus graph (determine the number of clusters among
+ * called variants)
+ *
+ *
  * @author tkonopka
  */
 public class GenomePositionNetwork {
@@ -48,7 +49,7 @@ public class GenomePositionNetwork {
 
         // load information about genome                 
         try {
-            ginfo = new GenomeInfo(genome);                        
+            ginfo = new GenomeInfo(genome);
         } catch (Exception ex) {
             System.out.println("Failed to load genome info: " + ex.getMessage());
             return;
@@ -93,10 +94,10 @@ public class GenomePositionNetwork {
             while ((s = br.readLine()) != null) {
                 if (!s.startsWith("#")) {
                     String[] stokens = s.split("\t|:");
-                    GenomePosition gpos = new GenomePosition(stokens[0], Integer.parseInt(stokens[1]), ginfo);                    
+                    GenomePosition gpos = new GenomePosition(stokens[0], Integer.parseInt(stokens[1]), ginfo);
                     ArrayList<GenomePosition> temp = new ArrayList<GenomePosition>(stokens.length / 2);
                     for (int i = 2; i < stokens.length; i += 2) {
-                        GenomePosition gpos2 = new GenomePosition(stokens[i], Integer.parseInt(stokens[i + 1]), ginfo);                        
+                        GenomePosition gpos2 = new GenomePosition(stokens[i], Integer.parseInt(stokens[i + 1]), ginfo);
                         temp.add(gpos2);
                     }
                     network.get(gpos.toString(ginfo)).addNeighbors(temp, gcomp);
@@ -146,7 +147,7 @@ public class GenomePositionNetwork {
         for (int i = 0; i < numneighbors; i++) {
             GenomePosition nowpos = node.getNeighbor(i);
             GenomePositionNode nownei = network.get(nowpos.toString(ginfo));
-            if (nownei != null) {                
+            if (nownei != null) {
                 node.addPriorityNeighbor(new GenomePosition(nownei.getChrIndex(), nownei.getPosition()), gcomp);
                 nownei.addPriorityNeighbor(new GenomePosition(node.getChrIndex(), node.getPosition()), gcomp);
                 count++;

@@ -39,7 +39,7 @@ public class SNVPositionDetails extends SNVPosition implements GenomePositionInt
         countG = 0L;
         countN = 0L;
     }
-    
+
     @Override
     public String toString(GenomeInfo ginfo) {
         StringBuilder sb = new StringBuilder();
