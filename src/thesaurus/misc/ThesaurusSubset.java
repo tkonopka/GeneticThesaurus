@@ -196,10 +196,10 @@ public class ThesaurusSubset implements Runnable {
 
         // add one line to the header
         if (bedfile != null) {
-            sb.append("##Subseted with bed file: ").append(bedfile.getAbsolutePath()).append("\n");
+            sb.append("##Subset bed file: ").append(bedfile.getAbsolutePath()).append("\n");
         }
         for (int i = 0; i < bedregions.size(); i++) {
-            sb.append("##Subseted with region: ").append(bedregions.get(i)).append("\n");
+            sb.append("##Subset region: ").append(bedregions.get(i)).append("\n");
         }
         sb.append(s).append("\n");
         os.write(sb.toString().getBytes());

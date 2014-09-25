@@ -103,7 +103,9 @@ class ThesaurusRegionsMap {
         }
         thesline = thesaurusreader.readLine();
         thesentry = new ThesaurusEntry(thesline, ginfo);
-        curchr = ginfo.getChrName(thesentry.alignChrIndex);
+        if (thesentry.alignChrIndex >= 0) {
+            curchr = ginfo.getChrName(thesentry.alignChrIndex);
+        }
     }
 
     /**
@@ -133,46 +135,6 @@ class ThesaurusRegionsMap {
             count += map1.size();
         }
         return count;
-    }
-
-    /**
-     * make a copy of the current state of the regions object, into a primitive
-     * array.
-     *
-     * Note, the thesaurus entries are provided as links, not defensive copies.
-     * So, to preserve status of thesaurus entry and the ThesaurusRegionsMap, do
-     * not modify the entries output by this function.
-     *
-     * @return
-     *
-     * @deprecated
-     *
-     * use getEntries(min, max) instead
-     *
-     *
-     */
-    @Deprecated
-    private ThesaurusEntry[] getEntries() {
-
-        // simple exit if no regions available
-        if (isEmpty()) {
-            return null;
-        }
-
-        // figure out how many regions are current stored in memory
-        int count = getNumEntries();
-
-        // make an array of ThesaurusEntries here
-        ThesaurusEntry[] ans = new ThesaurusEntry[count];
-        int index = 0;
-        for (Map.Entry<Integer, ArrayList<ThesaurusEntry>> entry : regions.entrySet()) {
-            ArrayList<ThesaurusEntry> map1 = entry.getValue();
-            for (int i = 0; i < map1.size(); i++) {
-                ans[index] = map1.get(i);
-                index++;
-            }
-        }
-        return ans;
     }
 
     /**
@@ -216,7 +178,6 @@ class ThesaurusRegionsMap {
                 }
             }
         }
-
 
         if (temp.isEmpty()) {
             return null;
@@ -314,6 +275,7 @@ class ThesaurusRegionsMap {
             thesline = thesaurusreader.readLine();
             if (thesline == null) {
                 thesentry = null;
+                curchr = null;
                 return;
             }
         }
@@ -336,7 +298,7 @@ class ThesaurusRegionsMap {
      * @throws IOException
      */
     private boolean loadUpToPosition(int positionMin, int positionMax) throws IOException {
-
+        
         int curchrindex = ginfo.getChrIndex(curchr);
 
         // avoid loading anything unless the we are looking at the right chromosome
@@ -421,13 +383,19 @@ class ThesaurusRegionsMap {
             skipToChr(chr);
             System.gc();
         }
-
+        
+        // it is possible thesaurus runs out of chromosomes while user still is trying to lookup things.
+        // just abort here and report no entries
+        if (curchr==null) {
+            return null;
+        }
+        
         // make sure regions encompassing the position are loaded
-        uptoposition = position;
+        uptoposition = position;                
         if (!loadUpToPosition(position - bufferlength, position + bufferlength)) {
             System.out.println("How did we get here?");
             return null;
-        }
+        }        
 
         return getEntries(position - aroundbuffer, position + aroundbuffer);
     }
