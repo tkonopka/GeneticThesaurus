@@ -40,7 +40,7 @@ import thesaurus.misc.ThesaurusSubset;
 public class GeneticThesaurus {
 
     // set the version of this Genetic Thesaurus
-    final static String version = "0.1.1 (devel)";
+    final static String version = "0.1.1";
     // set some default values
     public static final int DEFAULT_READLEN = 100;
     public static final int DEFAULT_DIVISOR = 10;
