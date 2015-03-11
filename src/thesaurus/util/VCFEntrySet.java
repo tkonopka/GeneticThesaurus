@@ -46,7 +46,8 @@ public class VCFEntrySet {
      * Header, columns and variants will be stored in memory.
      *
      * @param f
-     * @param vcomp
+     * @param ginfo
+     * @param withindels
      */
     public VCFEntrySet(File f, GenomeInfo ginfo, boolean withindels) {
 
@@ -101,6 +102,8 @@ public class VCFEntrySet {
         for (int i = 0; i < tempvars.size(); i++) {
             variants[i] = tempvars.get(i);
         }
+        
+        tempvars.clear();
         System.gc();
     }
 

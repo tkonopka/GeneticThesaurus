@@ -102,7 +102,7 @@ class BamRegionsMap {
                 ans[index] = map1.get(i);
                 index++;
             }
-        }
+        }        
         return ans;
     }
 
@@ -142,7 +142,6 @@ class BamRegionsMap {
         // *****************
         // should this function somehow keep track of all chromosomes read so far? 
         // *****************
-
         if (record == null) {
             return;
         }
@@ -186,9 +185,9 @@ class BamRegionsMap {
     private void addEntry(SAMRecord entry) {
         ArrayList<SAMRecord> temp = regions.get(entry.getAlignmentEnd());
         if (temp == null) {
-            temp = new ArrayList<SAMRecord>(32);
+            temp = new ArrayList<SAMRecord>(8);
             regions.put(entry.getAlignmentEnd(), temp);
-        }
+        }        
         temp.add(entry);
     }
 
@@ -268,7 +267,11 @@ class BamRegionsMap {
             // change of chromosomes, so get rid of all regions on the current chromosome
             regions.clear();
             skipToChr(chr);
-            System.gc();
+            // if the skip is successful, i.e. curchr is updated
+            // clean up some memory after the old chromosome
+            if (chr.equals(curchr)) {
+                System.gc();
+            }
         }
 
         // make sure regions encompassing the position are loaded

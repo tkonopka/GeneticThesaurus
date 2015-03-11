@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Tomasz Konopka.
+ * Copyright 2013-2015 Tomasz Konopka.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import thesaurus.util.ThesaurusSAMRecord;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
@@ -31,12 +32,13 @@ import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import jsequtils.file.OutputStreamMaker;
 import jsequtils.genome.GenomeInfo;
-import jsequtils.genome.GenomePositionComparator;
 import jsequtils.genome.GenomePositionInterface;
 import jsequtils.sequence.FastaReader;
 import jsequtils.variants.VCFEntry;
 import jsequtils.variants.VCFEntrySet;
 import net.sf.samtools.SAMRecord;
+import thesaurus.util.SNVPositionComparator;
+import thesaurus.util.SNVPositionDetailsList;
 
 /**
  * One of main programs under GeneticThesaurus. Supposed to concurrently scan a
@@ -47,22 +49,18 @@ import net.sf.samtools.SAMRecord;
  */
 public class ThesaurusFilter extends ThesaurusMapTool {
 
-    // constants describing how to deal with information from bam
-    private static final int METHOD_FULL = 0;
-    private static final int METHOD_BAF = 1;
     // variables collected from the command line
     private String output = "stdout";
     private String validate = "STRICT";
     private File thesaurusfile = null;
     private File vcffile = null;
     private File bamfile = null;
-    // method - full of baf
-    // set to full to use bam file when computing synonyms
-    // set to baf to use bam file only to compute the baf
-    private int method = METHOD_FULL;
     private int minmapqual = -1;
     private boolean verbose = true;
     private final ThesaurusLog mylog;
+    // for comparisons
+    private ArrayList<File> bamfiles = new ArrayList<File>(2);
+    private ArrayList<String> labels = new ArrayList<String>(2);
     // thresholds used during filtering
     private int tolerance = 1;
     private int maxtolerance = 2;
@@ -72,6 +70,9 @@ public class ThesaurusFilter extends ThesaurusMapTool {
     private int many = 100;
     private int toomany = 400;
     private int insertsize = 200;
+    // for outputing 
+    private final DecimalFormat BAFformat = new DecimalFormat("0.0000");
+    //private final int specialpos = 64063318;
 
     private void printFilterHelp() {
         System.out.println("GeneticThesaurus filter: use a thesaurus to filter a VCF file");
@@ -81,10 +82,13 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         System.out.println("Core options:");
         ThesaurusIO.printHelpItem("--bam <File>", "alignment files matching --vcf");
         ThesaurusIO.printHelpItem("--genome <File>", "genome fasta file");
-        //ThesaurusIO.printHelpItem("--method <String>", "choose method to use information from bam file (values baf, full; default full)");
         ThesaurusIO.printHelpItem("--output <String>", "prefix for output files");
         ThesaurusIO.printHelpItem("--thesaurus <File>", "thesaurus file");
         ThesaurusIO.printHelpItem("--vcf <File>", "variant call file matching --bam");
+        System.out.println("\nComparisons:");
+        ThesaurusIO.printHelpItem("--comparebam <File>", "additional alignemnt files for comparisons of BAFs; can specify multiple times");
+        ThesaurusIO.printHelpItem("--comparelabel <String>", "labels matching --comparebam; specify one for each --comparebam in order");
+        ThesaurusIO.printHelpItem("--label <String>", "label for alignment --bam");
         System.out.println("\nFiltering details:");
         ThesaurusIO.printHelpItem("--insertsize <int>", "insert size for paired-end reads [default " + insertsize + "]");
         ThesaurusIO.printHelpItem("--clip <int>", "number of bases to clip from read ends [default " + softclip + "]");
@@ -113,11 +117,16 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         // input and output 
         prs.accepts("thesaurus").withRequiredArg().ofType(File.class);
         prs.accepts("output").withRequiredArg().ofType(String.class);
-        prs.accepts("method").withRequiredArg().ofType(String.class);
         prs.accepts("minmapqual").withRequiredArg().ofType(Integer.class);
         prs.accepts("vcf").withRequiredArg().ofType(File.class);
         prs.accepts("bam").withRequiredArg().ofType(File.class);
 
+        // for comparisons
+        prs.accepts("comparebam").withRequiredArg().ofType(File.class);
+        prs.accepts("comparelabel").withRequiredArg().ofType(String.class);
+        prs.accepts("label").withRequiredArg().ofType(String.class);
+
+        // thresholds for filtering
         prs.accepts("tolerance").withRequiredArg().ofType(Integer.class);
         prs.accepts("insertsize").withRequiredArg().ofType(Integer.class);
         prs.accepts("readlen").withRequiredArg().ofType(Integer.class);
@@ -131,6 +140,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
 
         // now use OptionSet to parse the command line
         OptionSet options;
+        boolean ok = true;
 
         try {
             options = prs.parse(args);
@@ -139,153 +149,183 @@ public class ThesaurusFilter extends ThesaurusMapTool {
             return false;
         }
 
-        if (options.has("genome")) {
-            genome = (File) options.valueOf("genome");
-            if (!genome.exists() || !genome.canRead()) {
-                System.out.println("Cannot read genome file, or file does not exist");
-                return false;
+        try {
+            if (options.has("genome")) {
+                genome = (File) options.valueOf("genome");
+                if (!genome.exists() || !genome.canRead()) {
+                    System.out.println("Cannot read genome file, or file does not exist");
+                    ok = false;
+                }
             }
-        }
 
-        if (options.has("minmapqual")) {
-            minmapqual = (Integer) options.valueOf("minmapqual");
-            if (minmapqual < 0) {
-                System.out.println("Parameter minmapqual must be >= 0");
-                return false;
+            if (options.has("minmapqual")) {
+                minmapqual = (Integer) options.valueOf("minmapqual");
+                if (minmapqual < 0) {
+                    System.out.println("Parameter minmapqual must be >= 0");
+                    ok = false;
+                }
             }
-        }
 
-        if (options.has("softclip")) {
-            softclip = (Integer) options.valueOf("clip");
-            if (softclip < 0) {
-                System.out.println("Parameter clip must be >= 0");
-                return false;
+            if (options.has("softclip")) {
+                softclip = (Integer) options.valueOf("clip");
+                if (softclip < 0) {
+                    System.out.println("Parameter clip must be >= 0");
+                    ok = false;
+                }
             }
-        }
-        if (options.has("readlen")) {
-            readlen = (Integer) options.valueOf("readlen");
-            if (readlen < 0) {
-                System.out.println("Parameter readlen must be >= 0");
-                return false;
+            if (options.has("readlen")) {
+                readlen = (Integer) options.valueOf("readlen");
+                if (readlen < 0) {
+                    System.out.println("Parameter readlen must be >= 0");
+                    ok = false;
+                }
             }
-        }
-        if (options.has("insertsize")) {
-            insertsize = (Integer) options.valueOf("insertsize");
-            if (insertsize < readlen) {
-                System.out.println("Parameter insertsize must be >= readlen");
-                return false;
+            if (options.has("insertsize")) {
+                insertsize = (Integer) options.valueOf("insertsize");
+                if (insertsize < readlen) {
+                    System.out.println("Parameter insertsize must be >= readlen");
+                    ok = false;
+                }
             }
-        }
 
+            if (options.has("tolerance")) {
+                tolerance = (Integer) options.valueOf("tolerance");
+                if (tolerance < 0) {
+                    System.out.println("Parameter tolerance must be >= 0");
+                    ok = false;
+                }
+            }
+            if (options.has("maxtolerance")) {
+                maxtolerance = (Integer) options.valueOf("maxtolerance");
+                if (maxtolerance < tolerance) {
+                    System.out.println("Parameter maxtolerance must be >= value of parameter tolerance");
+                    ok = false;
+                }
+            }
+            if (options.has("many")) {
+                many = (Integer) options.valueOf("many");
+                if (many < 2) {
+                    System.out.println("Parameter many must be > 1");
+                    ok = false;
+                }
+            }
+            if (options.has("toomany")) {
+                toomany = (Integer) options.valueOf("toomany");
+                if (toomany < 2) {
+                    System.out.println("Parameter toomany must be > 1");
+                    ok = false;
+                }
+            }
 
-        if (options.has("tolerance")) {
-            tolerance = (Integer) options.valueOf("tolerance");
-            if (tolerance < 0) {
-                System.out.println("Parameter tolerance must be >= 0");
-                return false;
+            // thresholds deciding which thesaurus links to accept
+            if (options.has("hitcount")) {
+                hitcount = (Integer) options.valueOf("hitcount");
+                if (hitcount < 1) {
+                    System.out.println("Parameter hitcount must be >= 1");
+                    ok = false;
+                }
             }
-        }
-        if (options.has("maxtolerance")) {
-            maxtolerance = (Integer) options.valueOf("maxtolerance");
-            if (maxtolerance < tolerance) {
-                System.out.println("Parameter maxtolerance must be >= value of parameter tolerance");
-                return false;
+            if (options.has("hitproportion")) {
+                hitproportion = (Double) options.valueOf("hitproportion");
+                if (hitproportion < 0) {
+                    System.out.println("Parameter hitproportion must be >= 0");
+                    ok = false;
+                }
             }
-        }
-        if (options.has("many")) {
-            many = (Integer) options.valueOf("many");
-            if (many < 2) {
-                System.out.println("Parameter many must be > 1");
-                return false;
-            }
-        }
-        if (options.has("toomany")) {
-            toomany = (Integer) options.valueOf("toomany");
-            if (toomany < 2) {
-                System.out.println("Parameter toomany must be > 1");
-                return false;
-            }
-        }
 
-        // thresholds deciding which thesaurus links to accept
-        if (options.has("hitcount")) {
-            hitcount = (Integer) options.valueOf("hitcount");
-            if (hitcount < 1) {
-                System.out.println("Parameter hitcount must be >= 1");
-                return false;
-            }
-        }
-        if (options.has("hitproportion")) {
-            hitproportion = (Double) options.valueOf("hitproportion");
-            if (hitproportion < 0) {
-                System.out.println("Parameter hitproportion must be >= 0");
-                return false;
-            }
-        }
-
-        // get prefix for output tracks
-        if (options.has("output")) {
-            output = (String) options.valueOf("output");
-        } else {
-            System.out.println("Missing required argument --output");
-            return false;
-        }
-
-        // get prefix for output tracks
-        if (options.has("validate")) {
-            validate = (String) options.valueOf("validate");
-            if (!validate.equals("STRICT") && !validate.equals("LENIENT") && !validate.equals("SILENT")) {
-                System.out.println("Option --validate must be set to STRICT, LENIENT, or SILENT");
-                return false;
-            }
-        }
-
-        // get input vcf file
-        if (options.has("vcf")) {
-            vcffile = (File) options.valueOf("vcf");
-            if (!vcffile.exists() || !vcffile.canRead()) {
-                System.out.println("Cannot read vcf file, or file does not exist");
-                return false;
-            }
-        } else {
-            System.out.println("Missing required argument --vcf");
-            return false;
-        }
-
-        if (options.has("bam")) {
-            bamfile = (File) options.valueOf("bam");
-            if (!bamfile.exists() || !bamfile.canRead()) {
-                System.out.println("Cannot read bam file, or file does not exist");
-                return false;
-            }
-        }
-
-        // get input vcf file
-        if (options.has("thesaurus")) {
-            thesaurusfile = (File) options.valueOf("thesaurus");
-            if (!thesaurusfile.exists() || !thesaurusfile.canRead()) {
-                System.out.println("Cannot read thesaurus file, or file does not exist");
-                return false;
-            }
-        } else {
-            System.out.println("Missing required argument --thesaurus");
-            return false;
-        }
-
-        if (options.has("method")) {
-            String methodString = (String) options.valueOf("method");
-            if (methodString.equalsIgnoreCase("full")) {
-                method = METHOD_FULL;
-            } else if (methodString.equalsIgnoreCase("baf")) {
-                method = METHOD_BAF;
+            // get prefix for output tracks
+            if (options.has("output")) {
+                output = (String) options.valueOf("output");
             } else {
-                System.out.println("Unrecognized value for parameter method - " + methodString);
-                System.out.println("Allowed values are baf and full");
-                return false;
+                System.out.println("Missing required argument --output");
+                ok = false;
             }
+
+            // get prefix for output tracks
+            if (options.has("validate")) {
+                validate = (String) options.valueOf("validate");
+                if (!validate.equals("STRICT") && !validate.equals("LENIENT") && !validate.equals("SILENT")) {
+                    System.out.println("Option --validate must be set to STRICT, LENIENT, or SILENT");
+                    ok = false;
+                }
+            }
+
+            // get input vcf file
+            if (options.has("vcf")) {
+                vcffile = (File) options.valueOf("vcf");
+                if (!vcffile.exists() || !vcffile.canRead()) {
+                    System.out.println("Cannot read vcf file, or file does not exist");
+                    ok = false;
+                }
+            } else {
+                System.out.println("Missing required argument --vcf");
+                ok = false;
+            }
+
+            if (options.has("bam")) {
+                bamfile = (File) options.valueOf("bam");
+                if (!bamfile.exists() || !bamfile.canRead()) {
+                    System.out.println("Cannot read bam file, or file does not exist");
+                    ok = false;
+                }
+                bamfiles.add(bamfile);
+            }
+
+            // get input vcf file
+            if (options.has("thesaurus")) {
+                thesaurusfile = (File) options.valueOf("thesaurus");
+                if (!thesaurusfile.exists() || !thesaurusfile.canRead()) {
+                    System.out.println("Cannot read thesaurus file, or file does not exist");
+                    ok = false;
+                }
+            } else {
+                System.out.println("Missing required argument --thesaurus");
+                ok = false;
+            }
+
+            // Settings for sample comparisons
+            // Get label for the primary sample               
+            if (options.has("label")) {
+                labels.add((String) options.valueOf("label"));
+            } else {
+                labels.add("sample");
+            }
+
+            // get labels for comparison samplse
+            if (options.has("comparelabel")) {
+                Object[] temp = options.valuesOf("comparelabel").toArray();
+                for (int i = 0; i < temp.length; i++) {
+                    labels.add((String) temp[i]);
+                }
+            }
+
+            if (options.has("comparebam")) {
+                Object[] temp = options.valuesOf("comparebam").toArray();
+                // copy each file from temp into an array, print warnings 
+                for (int i = 0; i < temp.length; i++) {
+                    File nowbam = (File) temp[i];
+                    bamfiles.add(nowbam);
+                    if (!nowbam.exists() || !nowbam.canRead()) {
+                        System.out.println("Cannot read bam file, or file does not exist\n" + nowbam.getAbsolutePath());
+                        ok = false;
+                    }
+                }
+            }
+
+            // final checks on comparisons - number of comparison bams and labels must match
+            if (labels.size() != bamfiles.size()) {
+                System.out.println("Number of values for comparebam and comparelabel must match");
+                System.out.println("Got " + labels.size() + " labels and " + bamfiles.size() + " bams");
+                ok = false;
+            }
+
+        } catch (Exception ex) {
+            System.out.println("Error parsing command line arguments\n"
+                    + "This error often appears when a parameter is unexpected set more than once");
+            ok = false;
         }
 
-        return true;
+        return ok;
     }
 
     public ThesaurusFilter(String[] args) {
@@ -318,8 +358,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
 
         // read all the variants into memory        
         mylog.log("Reading variants");
-        GenomeInfo ginfo = null;
-        GenomePositionComparator vcomp = new GenomePositionComparator();
+        GenomeInfo ginfo = null;        
         try {
             ginfo = new GenomeInfo(genome);
         } catch (Exception ex) {
@@ -362,7 +401,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         // Scan the bam file again and collect allele frequency information about the variants.
         try {
             mylog.log("Computing BAF for all variants, with and without thesaurus annotation");
-            getBAFs(allvariants, allnetwork, ginfo, bamfile, outBAF);
+            getBAFs(allvariants, allnetwork, ginfo, bamfiles, labels, outBAF);
         } catch (Exception ex) {
             System.out.println("Something went wrong during BAF computation: " + ex.getMessage());
         }
@@ -390,128 +429,184 @@ public class ThesaurusFilter extends ThesaurusMapTool {
      */
     private void getBAFs(VCFEntrySet variants,
             SNVPositionNetwork synonyms, GenomeInfo ginfo,
-            File bamfile, OutputStream outBAF) throws IOException {
+            ArrayList<File> bamfiles, ArrayList<String> labels, OutputStream outBAF) throws IOException {
+
+        // find out how many bam files to compare to
+        int numbams = bamfiles.size();
 
         // make a list of all variats in the synonyms map
-        ArrayList<SNVPositionDetails> allloci = makeListOfAllLoci(variants, synonyms, ginfo);
+        ArrayList<SNVPosition> allpositions = synonyms.getAllNodes();
 
-        // in the constructor for bamregions, I had the minimum mapping quality set at "minmapqual"
-        // but this only worked well for minmapqual<=1. So now I set this to zero regardless of 
-        // the mapping quality used in variant calling.
-        mylog.log("Collecting coverage information from bam file");
-        BamRegionsMap bamregions = new BamRegionsMap(bamfile, new GenomeInfo(genome), "SILENT", 0);
-        int oldchr = -1;
-        int numloci = allloci.size();
-        for (int i = 0; i < numloci; i++) {
-            SNVPositionDetails entry = allloci.get(i);
-            int nowchr = entry.getChrIndex();
-            // output a log line at every chromosome
-            if (nowchr != oldchr) {
-                oldchr = nowchr;
-            }
-            // look up the position in the bam
-            SAMRecord[] varinbam = bamregions.lookup(ginfo.getChrName(nowchr), entry.getPosition());
-            // collect information about the locus from each bam record
-            countDetails(entry, varinbam);
+        // collect coverage and BAF details from each bam file                
+        SNVPositionDetailsList[] comparedetails = new SNVPositionDetailsList[numbams];
+        for (int i = 0; i < numbams; i++) {
+            mylog.log("Collecting coverage information from bam file: " + labels.get(i));
+            comparedetails[i] = collectBAFDetailsFromBam(allpositions, bamfiles.get(i), ginfo);
         }
-        bamregions.close();
 
-        GenomePositionComparator vcomp = new GenomePositionComparator();
+        SNVPositionComparator vcomp = new SNVPositionComparator();
 
         mylog.log("Writing baf table");
         prepareBAFStream(outBAF);
         int vs = variants.size();
         for (int i = 0; i < vs; i++) {
+            // get the variant  
             VCFEntry entry = variants.getVariant(i);
-            SNVPosition entrypos = new SNVPosition(entry, ginfo);
 
-            // collect information about this location only
-            SNVPositionDetails nowGPD = getGPD(allloci, entry, vcomp);
-
+            // collect some basic information about what the variant is and thesaurus filters
             String ref = entry.getRef();
             String alt = entry.getAlt();
+            SNVPosition entrypos = new SNVPosition(entry, ginfo);            
+            ArrayList<SNVPosition> nowsynonyms = synonyms.getNeighborNodes(entrypos);
 
+            // start a BAF file entry with information about the varint
             StringBuilder sb = new StringBuilder();
             sb.append(entry.getChr()).append("\t").append(entry.getPosition()).append("\t").append(ref).append("\t").append(alt);
-
-            // collect information about this location only                
-            sb.append("\t").append(((double) nowGPD.getCountAlt()) / (double) nowGPD.getCountATCG());
-
-            // add in all the synonym regions
-            ArrayList<SNVPosition> nowsynonyms = synonyms.getNeighborNodes(entrypos);
-            int numsynonyms;
-
-            if (nowsynonyms != null) {
-                numsynonyms = nowsynonyms.size();
-                for (int k = 0; k < numsynonyms; k++) {
-                    nowGPD.incrementCounts(getGPD(allloci, nowsynonyms.get(k), vcomp));
-                }
-            } else {
-                numsynonyms = 0;
-            }
-
-            // output the BAF including the synonyms
-            sb.append("\t").append(((numsynonyms + 1) * (double) nowGPD.getCountAlt()) / (double) nowGPD.getCountATCG());
-
-            // output the total coverage
-            sb.append("\t").append(nowGPD.getCountATCG());
-
             // output the number of synonyms
             if (nowsynonyms == null) {
-                sb.append("\t0\n");
+                sb.append("\t0");
             } else {
-                sb.append("\t").append(nowsynonyms.size()).append("\n");
+                sb.append("\t").append(nowsynonyms.size());
             }
+            
+            // add in information about this variant from each bam file
+            for (int j = 0; j < numbams; j++) {                
+                sb.append(getBAFentryBlock(entrypos, comparedetails[j], nowsynonyms, vcomp, ginfo));                
+            }
+            sb.append("\n");
 
             outBAF.write(sb.toString().getBytes());
         }
-
     }
 
     /**
-     * find an entry in an array using binary search. This is just a wrapper for
-     * Collections.binarySearch
      *
-     * @param gpdlist
+     * @param snvposition
      *
-     * @param gpdfind
+     * a genomic position with a called variant
+     *
+     * @param posdetailslist
+     *
+     * a sorted list of positions with details
+     *
+     * @param nowsynonyms
+     *
+     * synonyms for the snvposition site
      *
      * @param vcomp
      *
+     * a comparator (used to search for positions in the posdetailslist object)
+     *
      * @return
      *
+     * A string that can be output in a BAF file (block of values separated by
+     * tabs). Format should match definition in the BAF file header. Always has
+     * a leading tab.
      */
-    private SNVPositionDetails getGPD(ArrayList<SNVPositionDetails> gpdlist, GenomePositionInterface gpdfind, GenomePositionComparator vcomp) {
-        int a = Collections.binarySearch(gpdlist, gpdfind, vcomp);
-        if (a < 0) {
-            return null;
-        } else {
-            return gpdlist.get(a);
+    private String getBAFentryBlock(SNVPosition snvposition,
+            SNVPositionDetailsList posdetailslist, ArrayList<SNVPosition> nowsynonyms,
+            SNVPositionComparator vcomp, GenomeInfo ginfo) {
+
+        // get "naive" estimates using only the posdetails object
+        SNVPositionDetails posdetails = posdetailslist.find(snvposition, vcomp);
+        long naivecov = posdetails.getCountATCG();
+        double naiveBAF = ((double) posdetails.getCountAlt()) / ((double) naivecov);
+        if (naivecov == 0) {
+            naiveBAF = 0.0;
         }
+
+        // get "thesaurus" estimates 
+        SNVPositionDetails thesdetails = new SNVPositionDetails(posdetails);
+        int numsynonyms = 0;
+        if (nowsynonyms != null) {
+            numsynonyms = nowsynonyms.size();
+            for (int i = 0; i < nowsynonyms.size(); i++) {
+                thesdetails.incrementCounts(posdetailslist.find(nowsynonyms.get(i), vcomp));
+            }
+
+        }
+        long thescov = thesdetails.getCountATCG();
+        double thesBAF = ((numsynonyms + 1) * (double) thesdetails.getCountAlt()) / ((double) thescov);
+        if (thescov == 0) {
+            thesBAF = 0.0;
+        }
+        
+        // create the block with naive and thesaurus estimates, separated by tabs
+        StringBuilder sb = new StringBuilder();
+        sb.append("\t").append(BAFformat.format(naiveBAF)).append("\t").append(BAFformat.format(thesBAF));
+        sb.append("\t").append(naivecov).append("\t").append(thescov);
+        return sb.toString();
     }
 
     /**
-     * Convert between a structure of positions in a network form to an array.
+     * Collects information about SNV positions in a given alignment file.
      *
-     * @param variants
-     * @param network
+     *
+     * @param snvpositions
+     *
+     * a set of genomic position with base changes
+     *
+     * @param bamf
+     *
+     * file to scan to fill in coverage information
+     *
      * @param ginfo
      * @return
+     *
+     * a list of same length as snvposition in the input. This new list includes
+     * counters for each base in the alphabet. The function scans the alignment
+     * to fill in the counters.
+     *
+     * @throws IOException
      */
-    private ArrayList<SNVPositionDetails> makeListOfAllLoci(VCFEntrySet variants,
-            SNVPositionNetwork network, GenomeInfo ginfo) {
+    private SNVPositionDetailsList collectBAFDetailsFromBam(ArrayList<SNVPosition> snvpositions,
+            File bamf, GenomeInfo ginfo) throws IOException {
 
-        // make array of loci  from the network. 
-        // Important: getAllNodes() will return the positions in sorted order.
-        ArrayList<SNVPosition> allloci = network.getAllNodes();
-        int allsize = allloci.size();
+        // from a list of positions, create a list that includes base/coverage counters
+        SNVPositionDetailsList alldetails = makeDetailsList(snvpositions);
 
+        // in the constructor for bamregions, I had the minimum mapping quality set at "minmapqual"
+        // but this only worked well for minmapqual<=1. So now I set this to zero regardless of 
+        // the mapping quality used in variant calling.        
+        BamRegionsMap bamregions = new BamRegionsMap(bamf, ginfo, "SILENT", 0);
+
+        int numloci = alldetails.size();
+        for (int i = 0; i < numloci; i++) {
+            SNVPositionDetails entry = alldetails.get(i);
+            int nowchr = entry.getChrIndex();
+            // look up the position in the bam
+            SAMRecord[] varinbam = bamregions.lookup(ginfo.getChrName(nowchr), entry.getPosition());
+            // collect information about the locus from each bam record
+            countDetailsFromRecords(entry, varinbam);
+        }
+        bamregions.close();
+
+        return (alldetails);
+    }
+
+    /**
+     * Convert between a list of positions to an array holding also counters for
+     * each base.
+     *
+     * @param variants
+     *
+     *
+     * @param allloci
+     *
+     * all SNVPositions in sorted order
+     *
+     * @param ginfo
+     *
+     * @return
+     */
+    private SNVPositionDetailsList makeDetailsList(ArrayList<SNVPosition> allloci) {
         // make array with details
-        ArrayList<SNVPositionDetails> alldetails = new ArrayList<SNVPositionDetails>(allloci.size());
+        int allsize = allloci.size();
+        SNVPositionDetailsList alldetails = new SNVPositionDetailsList(allsize);
         for (int i = 0; i < allsize; i++) {
             alldetails.add(new SNVPositionDetails(allloci.get(i)));
         }
-
+        alldetails.sort(new SNVPositionComparator());
         return alldetails;
     }
 
@@ -588,7 +683,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
                 adjustVcfEntryFilter(entry, true, "thesaurus");
                 adjustVcfEntryFormatGenotype(entry, 0);
             } else {
-                // variant is a substitutions - this is the interesting case here
+                // variant is a substitution - this is the interesting case here
 
                 // write a log line for every new chromosome
                 if (!entry.getChr().equals(oldchr)) {
@@ -610,7 +705,6 @@ public class ThesaurusFilter extends ThesaurusMapTool {
                     chrbitset = new BitSet(genomereader.getChromosomeLength());
                 }
 
-
                 // get entries in a wider window to update the bitset
                 ThesaurusEntry[] thesLinesOnLocus = thesregions.lookup(entry.getChr(), entry.getPosition(), insertsize);
                 if (thesLinesOnLocus != null) {
@@ -631,8 +725,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
                     // collect some information about the synonyms (number and loci)
                     ThesaurusSynonyms tsyns = new ThesaurusSynonyms(thesLinesOnLocus, entry, ginfo, calledvariants);
                     ThesaurusSAMRecord[] tbamrecords = null;
-                    // when method is full, make an array of bam 
-                    if (method == METHOD_FULL && readsOnLocus != null) {
+                    if (readsOnLocus != null) {
                         // convert the SAMRecords into ThesaurusSAMRecords                    
                         tbamrecords = makeClippedRecords(readsOnLocus, genomereader, softclip, entry.getPosition());
                     }
@@ -736,7 +829,15 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         return tbamrecords;
     }
 
-    private void countDetails(SNVPositionDetails details, SAMRecord[] varinbam) {
+    /**
+     * Increment count values stored in details using the sequences in SAM
+     * records. Function does not return anything, but the counters in the
+     * details object are edited/updated.
+     *
+     * @param details
+     * @param varinbam
+     */
+    private void countDetailsFromRecords(SNVPositionDetails details, SAMRecord[] varinbam) {
 
         if (varinbam == null) {
             return;
@@ -903,10 +1004,20 @@ public class ThesaurusFilter extends ThesaurusMapTool {
      * @param outvcf
      */
     private void prepareBAFStream(OutputStream outvcf) throws IOException {
-        // read and copy vcf file header from the original file
-        StringBuilder oldheader = new StringBuilder();
-        oldheader.append("## BAF for variants\n");
-        oldheader.append("chr\tposition\tref\talt\tnaive.BAF\tthesaurus.BAF\tthesaurus.cov\tthesaurus.synonyms\n");
-        outvcf.write(oldheader.toString().getBytes());
+        // prepare a header for a file with BAF estimates
+        StringBuilder bafheader = new StringBuilder();
+        bafheader.append("## BAF for variants\n");
+        bafheader.append("chr\tposition\tref\talt\tthesaurus.synonyms\t");
+
+        for (int i = 0; i < labels.size(); i++) {
+            String nowlabel = labels.get(i);
+            bafheader.append("\t" + nowlabel + ".naive.BAF"
+                    + "\t" + nowlabel + ".thesaurus.BAF"
+                    + "\t" + nowlabel + ".naive.cov"
+                    + "\t" + nowlabel + ".thesarus.cov");
+        }
+
+        bafheader.append("\n");
+        outvcf.write(bafheader.toString().getBytes());
     }
 }

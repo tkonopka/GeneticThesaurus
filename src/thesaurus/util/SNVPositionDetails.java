@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Tomasz Konopka.
+ * Copyright 2013-2015 Tomasz Konopka.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,12 @@ public class SNVPositionDetails extends SNVPosition implements GenomePositionInt
 
     long countA, countT, countC, countG, countN;
 
+    /**
+     * Constructor that copies chr:position information from the input and 
+     * sets all counters to zero
+     * 
+     * @param entry 
+     */
     public SNVPositionDetails(SNVPosition entry) {
         super(entry);
         countA = 0L;
@@ -40,6 +46,22 @@ public class SNVPositionDetails extends SNVPosition implements GenomePositionInt
         countN = 0L;
     }
 
+    /**
+     * A copy constructor
+     * 
+     * @param posdet 
+     */
+    public SNVPositionDetails(SNVPositionDetails posdet) {
+        // the super constructor uses the SNVPosition information from posdet
+        super(posdet);
+        // the next lines copy the count information
+        countA = posdet.countA;
+        countT = posdet.countT;
+        countC = posdet.countC;
+        countG = posdet.countG;
+        countN = posdet.countN;
+    }
+    
     @Override
     public String toString(GenomeInfo ginfo) {
         StringBuilder sb = new StringBuilder();

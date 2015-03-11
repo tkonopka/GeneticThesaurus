@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Tomasz Konopka.
+ * Copyright 2013-2015 Tomasz Konopka.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -98,7 +98,7 @@ class ThesaurusRegionsMap {
 
         // at this stage, the thesline should be the header
         if (!thesline.startsWith("Align.chr")) {
-            System.out.println("This is not a thesaurus file");
+            System.out.println("This is not a thesaurus file. Table must start with column Align.chr.");
             return;
         }
         thesline = thesaurusreader.readLine();
@@ -298,7 +298,7 @@ class ThesaurusRegionsMap {
      * @throws IOException
      */
     private boolean loadUpToPosition(int positionMin, int positionMax) throws IOException {
-        
+
         int curchrindex = ginfo.getChrIndex(curchr);
 
         // avoid loading anything unless the we are looking at the right chromosome
@@ -381,21 +381,24 @@ class ThesaurusRegionsMap {
             // change of chromosomes, so get rid of all regions on the current chromosome
             regions.clear();
             skipToChr(chr);
-            System.gc();
+            // like in BamRegionsMap, clean up memory if the skip is successful
+            if (chr.equals(curchr) && ginfo.getChrLength(chr) > 1e7) {
+                System.gc();
+            }
         }
-        
+
         // it is possible thesaurus runs out of chromosomes while user still is trying to lookup things.
         // just abort here and report no entries
-        if (curchr==null) {
+        if (curchr == null) {
             return null;
         }
-        
+
         // make sure regions encompassing the position are loaded
-        uptoposition = position;                
+        uptoposition = position;
         if (!loadUpToPosition(position - bufferlength, position + bufferlength)) {
             System.out.println("How did we get here?");
             return null;
-        }        
+        }
 
         return getEntries(position - aroundbuffer, position + aroundbuffer);
     }
