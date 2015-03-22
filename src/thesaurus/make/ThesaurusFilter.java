@@ -27,12 +27,10 @@ import java.io.OutputStream;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Collections;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import jsequtils.file.OutputStreamMaker;
 import jsequtils.genome.GenomeInfo;
-import jsequtils.genome.GenomePositionInterface;
 import jsequtils.sequence.FastaReader;
 import jsequtils.variants.VCFEntry;
 import jsequtils.variants.VCFEntrySet;
@@ -51,7 +49,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
 
     // variables collected from the command line
     private String output = "stdout";
-    private String validate = "STRICT";
+    private String validate = "SILENT";
     private File thesaurusfile = null;
     private File vcffile = null;
     private File bamfile = null;
@@ -72,7 +70,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
     private int insertsize = 200;
     // for outputing 
     private final DecimalFormat BAFformat = new DecimalFormat("0.0000");
-    //private final int specialpos = 64063318;
+    //private final int specialpos = 33652402;
 
     private void printFilterHelp() {
         System.out.println("GeneticThesaurus filter: use a thesaurus to filter a VCF file");
@@ -100,6 +98,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         ThesaurusIO.printHelpItem("--hitproportion <int>", "proportion of reads supporting variant that also thesaurus link [default " + hitproportion + "]");
         ThesaurusIO.printHelpItem("--many <int>", "decrease tolerance in areas with too many hits [default " + many + "]");
         ThesaurusIO.printHelpItem("--toomany <int>", "abandon variants with too many hits [default " + toomany + "]");
+        ThesaurusIO.printHelpItem("--validate <String>", "validation level for SAM records [default " + validate + "]");
         System.out.println();
     }
 
@@ -356,15 +355,18 @@ public class ThesaurusFilter extends ThesaurusMapTool {
             return;
         }
 
-        // read all the variants into memory        
-        mylog.log("Reading variants");
-        GenomeInfo ginfo = null;        
+        // more setup - need a comparator object for chromosomes and positions
+        GenomeInfo ginfo = null;
         try {
             ginfo = new GenomeInfo(genome);
         } catch (Exception ex) {
             System.out.println("Failed to load genomic position comparator: " + ex.getMessage());
+            System.out.println("Is the genome set on the command line or in the defaults?");
             return;
         }
+
+        // read all the variants into memory                
+        mylog.log("Reading variants");
         VCFEntrySet allvariants = new VCFEntrySet(vcffile, ginfo, true);
         SNVPositionNetwork allnetwork = null;
 
@@ -456,7 +458,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
             // collect some basic information about what the variant is and thesaurus filters
             String ref = entry.getRef();
             String alt = entry.getAlt();
-            SNVPosition entrypos = new SNVPosition(entry, ginfo);            
+            SNVPosition entrypos = new SNVPosition(entry, ginfo);
             ArrayList<SNVPosition> nowsynonyms = synonyms.getNeighborNodes(entrypos);
 
             // start a BAF file entry with information about the varint
@@ -468,10 +470,10 @@ public class ThesaurusFilter extends ThesaurusMapTool {
             } else {
                 sb.append("\t").append(nowsynonyms.size());
             }
-            
+
             // add in information about this variant from each bam file
-            for (int j = 0; j < numbams; j++) {                
-                sb.append(getBAFentryBlock(entrypos, comparedetails[j], nowsynonyms, vcomp, ginfo));                
+            for (int j = 0; j < numbams; j++) {
+                sb.append(getBAFentryBlock(entrypos, comparedetails[j], nowsynonyms, vcomp, ginfo));
             }
             sb.append("\n");
 
@@ -530,7 +532,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         if (thescov == 0) {
             thesBAF = 0.0;
         }
-        
+
         // create the block with naive and thesaurus estimates, separated by tabs
         StringBuilder sb = new StringBuilder();
         sb.append("\t").append(BAFformat.format(naiveBAF)).append("\t").append(BAFformat.format(thesBAF));
@@ -677,6 +679,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         int numvariants = calledvariants.size();
         for (int i = 0; i < numvariants; i++) {
             VCFEntry entry = calledvariants.getVariant(i);
+            //System.out.print(entry.toString(ginfo));
 
             if (entry.isIndel()) {
                 // skip processing indels, but still change the filter and format fields
@@ -705,7 +708,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
                     chrbitset = new BitSet(genomereader.getChromosomeLength());
                 }
 
-                // get entries in a wider window to update the bitset
+                // get entries in a wider window to update the bitset                               
                 ThesaurusEntry[] thesLinesOnLocus = thesregions.lookup(entry.getChr(), entry.getPosition(), insertsize);
                 if (thesLinesOnLocus != null) {
                     updateBitSetWithThesEntries(chrbitset, thesLinesOnLocus);
@@ -713,7 +716,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
 
                 // get entries in a narrower window around the variant - this will be used in analysis
                 thesLinesOnLocus = thesregions.lookup(entry.getChr(), entry.getPosition(), readlen);
-                // get also the bam file information
+                // get also the bam file information                
                 SAMRecord[] readsOnLocus = bamregions.lookup(entry.getChr(), entry.getPosition());
 
                 // in output vcf file, signal there are synonymous entries via the filter field
@@ -726,8 +729,8 @@ public class ThesaurusFilter extends ThesaurusMapTool {
                     ThesaurusSynonyms tsyns = new ThesaurusSynonyms(thesLinesOnLocus, entry, ginfo, calledvariants);
                     ThesaurusSAMRecord[] tbamrecords = null;
                     if (readsOnLocus != null) {
-                        // convert the SAMRecords into ThesaurusSAMRecords                    
-                        tbamrecords = makeClippedRecords(readsOnLocus, genomereader, softclip, entry.getPosition());
+                        // convert the SAMRecords into ThesaurusSAMRecords                                    
+                        tbamrecords = makeClippedRecords(readsOnLocus, genomereader, softclip, entry.getPosition());                        
                     }
                     // calculate the alternate loci
                     ArrayList<SNVPosition> synonyms;

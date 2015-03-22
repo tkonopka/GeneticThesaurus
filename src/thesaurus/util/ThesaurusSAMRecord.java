@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Tomasz Konopka.
+ * Copyright 2013-2015 Tomasz Konopka.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -74,41 +74,27 @@ public class ThesaurusSAMRecord {
         // the use reference sequence information to soft clip read ends
         int oldStart = alignStart;
         int oldEnd = alignEnd;
+        //System.out.println("QWE1 " + record.getReadName() + " " + record.getAlignmentStart());
         softClipEnds(referencesequence, cliplength);
+        //System.out.println("QWE2");
         int newStart = alignStart;
         int newEnd = alignEnd;
+        //System.out.println(newStart + " " + newEnd);
 
         // if clipping has occurred, get a subsequence of the referencesequence that matches the current alignment positions        
         byte[] subrefseq = referencesequence;
         if (newStart != oldStart || oldEnd != newEnd) {
             // some clipping has occurred            
             int offset = newStart - oldStart;
+            //System.out.println("offset is " + offset);
             subrefseq = Arrays.copyOfRange(referencesequence, offset, offset + (newEnd - newStart + 1));
+            //System.out.println("after copy");
         }
-
+        //System.out.println("QSE3");
         // calculate the number of mismatches
         this.mismatches = calcMismatches(subrefseq, newStart);
-
-        if (3 < 1) {
-            if (record.getReferenceName().equals("chr1")) {
-                if (newStart != oldStart || oldEnd != newEnd || 5 > 3) {
-                    System.out.println(record.getReferenceName() + ":" + oldStart);
-                    System.out.println(record.getReadName());
-                    for (int i = 0; i < referencesequence.length; i++) {
-                        System.out.print("" + (char) referencesequence[i]);
-                    }
-                    System.out.println();
-                    System.out.println(this.getCigar() + " " + this.isComplexCigar());
-                    for (int i = 0; i < subrefseq.length; i++) {
-                        System.out.print("" + (char) subrefseq[i]);
-                    }
-                    System.out.println();
-                    System.out.println("mismatches: " + mismatches);
-                    System.out.println("\n");
-                }
-            }
-        }
-
+        //System.out.println("QSE4 mismatches " + mismatches);
+        //System.out.println();
     }
 
     public int getNumMismatches() {
@@ -350,7 +336,7 @@ public class ThesaurusSAMRecord {
      * @param referencesequence
      *
      * a byte array holding reference sequence. This should be equal in length
-     * to the
+     * to the read length
      *
      * @param cliplength
      *
@@ -446,6 +432,13 @@ public class ThesaurusSAMRecord {
             }
         }
 
+        // rightindex is equal to readlength when a read is messed up that rightindex loop
+        // above finishes scanning the whole read but does not find a hit. 
+        // Here handle this by clipping the whole read except for one base.
+        if (rightindex == readlength) {
+            rightindex = leftindex;
+        }
+
         // don't do anything if no clipping will be required
         if (leftindex == 0 && rightindex == readlength - 1) {
             return;
@@ -457,9 +450,13 @@ public class ThesaurusSAMRecord {
         }
 
         // change the alignment start/end positions because of clipping
-        alignStart = positions[leftindex];
-        alignEnd = positions[rightindex];
-
+        if (positions[leftindex]>=alignStart) {
+            alignStart = positions[leftindex];
+        }
+        if (positions[rightindex]>=alignStart) {
+            alignEnd = positions[rightindex];
+        }
+                
         // change the position array to introduce clipping
         for (int i = 0; i < leftindex; i++) {
             positions[i] = -1;
@@ -534,7 +531,7 @@ public class ThesaurusSAMRecord {
         cigarsize = cigarelements.length;
         if (cigarsize == 0) {
             System.out.println("=== cigar zero size? " + this.getReadName() + " " + leftindex + " " + rightindex);
-        }
+        }        
     }
 
     /**

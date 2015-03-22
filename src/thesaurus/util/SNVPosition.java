@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Tomasz Konopka.
+ * Copyright 2013-2015 Tomasz Konopka.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -73,9 +73,16 @@ public class SNVPosition extends GenomePosition {
         return alt;
     }
 
+    /**
+     * gives a text-based description of the SNV. Uses a representation of chromosomes
+     * that is based on a numeric index, integer based position, and ref/alt pair. 
+     * The chromosome and position is intentionally separated by ; rather than : 
+     * as a reminder of the numeric index.
+     * @return 
+     */
     @Override
     public String toString() {
-        return "[" + super.getChrIndex() + "]:" + super.getPosition() + ":" + ref + ":" + alt;
+        return super.getChrIndex() + ";" + super.getPosition() + ":" + ref + ":" + alt;
     }
 
     @Override
