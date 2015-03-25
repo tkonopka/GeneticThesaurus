@@ -20,6 +20,8 @@ import thesaurus.util.ThesaurusLog;
 import thesaurus.util.ThesaurusIO;
 import thesaurus.util.SNVPosition;
 import thesaurus.util.SNVPositionDetails;
+import thesaurus.util.SNVPositionComparator;
+import thesaurus.util.SNVPositionDetailsList;
 import thesaurus.util.ThesaurusSAMRecord;
 import java.io.File;
 import java.io.IOException;
@@ -35,8 +37,6 @@ import jsequtils.sequence.FastaReader;
 import jsequtils.variants.VCFEntry;
 import jsequtils.variants.VCFEntrySet;
 import net.sf.samtools.SAMRecord;
-import thesaurus.util.SNVPositionComparator;
-import thesaurus.util.SNVPositionDetailsList;
 
 /**
  * One of main programs under GeneticThesaurus. Supposed to concurrently scan a
@@ -57,8 +57,8 @@ public class ThesaurusFilter extends ThesaurusMapTool {
     private boolean verbose = true;
     private final ThesaurusLog mylog;
     // for comparisons
-    private ArrayList<File> bamfiles = new ArrayList<File>(2);
-    private ArrayList<String> labels = new ArrayList<String>(2);
+    private ArrayList<File> bamfiles = new ArrayList<>(2);
+    private ArrayList<String> labels = new ArrayList<>(2);
     // thresholds used during filtering
     private int tolerance = 1;
     private int maxtolerance = 2;
@@ -70,7 +70,8 @@ public class ThesaurusFilter extends ThesaurusMapTool {
     private int insertsize = 200;
     // for outputing 
     private final DecimalFormat BAFformat = new DecimalFormat("0.0000");
-    //private final int specialpos = 33652402;
+    //private final int specialpos = 18637725;
+    //private final int specialpos2 = 21357558;    
 
     private void printFilterHelp() {
         System.out.println("GeneticThesaurus filter: use a thesaurus to filter a VCF file");
@@ -357,6 +358,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
 
         // more setup - need a comparator object for chromosomes and positions
         GenomeInfo ginfo = null;
+        System.out.println(genome.getAbsolutePath());
         try {
             ginfo = new GenomeInfo(genome);
         } catch (Exception ex) {
@@ -453,14 +455,14 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         int vs = variants.size();
         for (int i = 0; i < vs; i++) {
             // get the variant  
-            VCFEntry entry = variants.getVariant(i);
+            VCFEntry entry = variants.getVariant(i);            
 
             // collect some basic information about what the variant is and thesaurus filters
             String ref = entry.getRef();
             String alt = entry.getAlt();
             SNVPosition entrypos = new SNVPosition(entry, ginfo);
             ArrayList<SNVPosition> nowsynonyms = synonyms.getNeighborNodes(entrypos);
-
+           
             // start a BAF file entry with information about the varint
             StringBuilder sb = new StringBuilder();
             sb.append(entry.getChr()).append("\t").append(entry.getPosition()).append("\t").append(ref).append("\t").append(alt);
@@ -476,7 +478,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
                 sb.append(getBAFentryBlock(entrypos, comparedetails[j], nowsynonyms, vcomp, ginfo));
             }
             sb.append("\n");
-
+            
             outBAF.write(sb.toString().getBytes());
         }
     }
@@ -516,17 +518,17 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         if (naivecov == 0) {
             naiveBAF = 0.0;
         }
-
+        
         // get "thesaurus" estimates 
-        SNVPositionDetails thesdetails = new SNVPositionDetails(posdetails);
+        SNVPositionDetails thesdetails = new SNVPositionDetails(posdetails);        
         int numsynonyms = 0;
         if (nowsynonyms != null) {
             numsynonyms = nowsynonyms.size();
-            for (int i = 0; i < nowsynonyms.size(); i++) {
-                thesdetails.incrementCounts(posdetailslist.find(nowsynonyms.get(i), vcomp));
+            for (int i = 0; i < nowsynonyms.size(); i++) {                
+                thesdetails.incrementCounts(posdetailslist.find(nowsynonyms.get(i), vcomp));                
             }
-
         }
+
         long thescov = thesdetails.getCountATCG();
         double thesBAF = ((numsynonyms + 1) * (double) thesdetails.getCountAlt()) / ((double) thescov);
         if (thescov == 0) {
@@ -607,8 +609,8 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         SNVPositionDetailsList alldetails = new SNVPositionDetailsList(allsize);
         for (int i = 0; i < allsize; i++) {
             alldetails.add(new SNVPositionDetails(allloci.get(i)));
-        }
-        alldetails.sort(new SNVPositionComparator());
+        }                
+        alldetails.sortList();        
         return alldetails;
     }
 
@@ -707,7 +709,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
                     // make a new bitset for the chromosome
                     chrbitset = new BitSet(genomereader.getChromosomeLength());
                 }
-
+                
                 // get entries in a wider window to update the bitset                               
                 ThesaurusEntry[] thesLinesOnLocus = thesregions.lookup(entry.getChr(), entry.getPosition(), insertsize);
                 if (thesLinesOnLocus != null) {
@@ -730,7 +732,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
                     ThesaurusSAMRecord[] tbamrecords = null;
                     if (readsOnLocus != null) {
                         // convert the SAMRecords into ThesaurusSAMRecords                                    
-                        tbamrecords = makeClippedRecords(readsOnLocus, genomereader, softclip, entry.getPosition());                        
+                        tbamrecords = makeClippedRecords(readsOnLocus, genomereader, softclip, entry.getPosition());
                     }
                     // calculate the alternate loci
                     ArrayList<SNVPosition> synonyms;
@@ -747,7 +749,8 @@ public class ThesaurusFilter extends ThesaurusMapTool {
                         adjustVcfEntryFormatGenotype(entry, 0);
                     } else {
                         int numsynonyms = synonyms.size();
-                        // if there are too many, give up
+                        // if there are too many, give up                        
+
                         if (numsynonyms > toomany || containsLinkToUnaligned(synonyms)) {
                             adjustVcfEntryFilter(entry, numsynonyms == 0, "thesaurusmany");
                             adjustVcfEntryFormatGenotype(entry, numsynonyms);

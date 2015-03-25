@@ -8,30 +8,30 @@ package thesaurus.util;
 import java.util.Comparator;
 
 /**
- * a comparator for SNVPosition objects, i.e. genomic positions together with single-
- * nucleotide substitutions.
- * 
+ * a comparator for SNVPosition objects, i.e. genomic positions together with
+ * single- nucleotide substitutions.
+ *
  * @author tkonopka
  */
 public class SNVPositionComparator implements Comparator {
 
     /**
-     * 
+     *
      * @param o1
      * @param o2
-     * @return 
-     * 
+     * @return
+     *
      * First set of comparisons are made for chromosome and position
-     * 
-     * negative number if o1 is before o2. 
-     * (i.e. if chromosome o1 is before chromosome o2, or if position is smaller on same chromosome)
+     *
+     * negative number if o1 is before o2. (i.e. if chromosome o1 is before
+     * chromosome o2, or if position is smaller on same chromosome)
      *
      * positive num if o2 is before o1.
-     * 
-     * when the two position are exactly the same, the order of alt alleles is 
-     * the natural char order
-     * 
-     * 
+     *
+     * when the two position are exactly the same, the order of alt alleles is
+     * the natural char order of the ref alleles, then natural order of alt alleles.
+     *
+     *
      */
     @Override
     public int compare(Object o1, Object o2) {
@@ -40,7 +40,7 @@ public class SNVPositionComparator implements Comparator {
 
         int c1 = e1.getChrIndex();
         int c2 = e2.getChrIndex();
-                
+
         // if the chromosomes are different, use the preset order
         if (c1 == -1 || c2 == -1) {
             if (c1 == -1) {
@@ -54,10 +54,17 @@ public class SNVPositionComparator implements Comparator {
 
         // if the chromosomes are the same compare the positions      
         int posdifference = e1.getPosition() - e2.getPosition();
-        if (posdifference!=0) {
+        if (posdifference != 0) {
             return posdifference;
-        }             
-        return e1.getAlt()-e2.getAlt();
+        }
+
+        // at the same positions, first look at reference allele, then alt allele
+        int refdifference = e1.getRef() - e2.getRef();
+        if (refdifference == 0) {
+            return e1.getAlt() - e2.getAlt();
+        } else {
+            return refdifference;
+        }
     }
-    
+
 }

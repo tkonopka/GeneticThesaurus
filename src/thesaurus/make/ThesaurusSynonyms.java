@@ -122,10 +122,7 @@ class ThesaurusSynonyms {
      * Function tries to get synonyms with given conditions. If there are more
      * synonyms than "many", the function tries again with stricter settings
      *
-     * @return true if the search for synonyms was successful false if some the
-     * configuration is classified as "difficult"
-     *
-     * Note function can return true even when giving
+     * @return list of synonyms (loci)
      *
      */
     public ArrayList<SNVPosition> findVariants(ThesaurusSAMRecord[] tbamrecords,
@@ -698,10 +695,7 @@ class ThesaurusSynonyms {
 
         // return true also if the mate overlaps the origin position
         int os = thesentry.originStart - (reclen / 2);
-        int oe = thesentry.originEnd + (reclen / 2);
-        //if (thesentry.alignChr.equals(thesentry.originChr) && (matestart >= os && matestart <= oe && mateend >= os && mateend <= oe)) {
-        //    return true;
-        //}
+        int oe = thesentry.originEnd + (reclen / 2);        
         if (thesentry.alignChrIndex == thesentry.originChrIndex && (matestart >= os && matestart <= oe && mateend >= os && mateend <= oe)) {
             return true;
         }
@@ -803,7 +797,7 @@ class ThesaurusSynonyms {
      * only considers a subset of reads for which the supporting flag is set to
      * true
      *
-     * @return
+     * @return list of loci
      *
      *
      */

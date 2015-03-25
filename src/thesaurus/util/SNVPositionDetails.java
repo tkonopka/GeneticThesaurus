@@ -127,7 +127,7 @@ public class SNVPositionDetails extends SNVPosition implements GenomePositionInt
                 complement = true;
             }
         }
-
+                
         if (ok) {
             if (complement) {
                 countA += dd.countT;
