@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Tomasz Konopka.
+ * Copyright 2013-2015 Tomasz Konopka.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -122,29 +122,27 @@ class ThesaurusSynonyms {
      * Function tries to get synonyms with given conditions. If there are more
      * synonyms than "many", the function tries again with stricter settings
      *
-     * @return true if the search for synonyms was successful false if some the
-     * configuration is classified as "difficult"
-     *
-     * Note function can return true even when giving
+     * @return list of synonyms (loci)
      *
      */
     public ArrayList<SNVPosition> findVariants(ThesaurusSAMRecord[] tbamrecords,
-            int hitcount, double hitproportion, int tolerance, int maxtolerance, int many, BitSet chrbitset) {
+            int hitcount, double hitproportion, int tolerance, int maxtolerance, 
+            int many, BitSet chrbitset) {
 
         // the answer, i.e. the locations synonymous with varentry will be calculated    
         // and stored in the synonyms array
         ArrayList<SNVPosition> synonyms;
 
-        if (tbamrecords == null) {
+        if (tbamrecords == null) {            
             synonyms = computeAllSynonymousPositionsNoBam();
-        } else {
+        } else {            
             // use precomputed information to get a list of synonymous loci
             synonyms = computeAllSynonymousPositions(tbamrecords, hitcount, hitproportion,
-                    tolerance, maxtolerance, maxtolerance, chrbitset);
-            if (synonyms != null && synonyms.size() >= many && maxtolerance - 1 >= 0) {
+                    tolerance, maxtolerance, maxtolerance, chrbitset);            
+            if (synonyms != null && synonyms.size() >= many && maxtolerance - 1 >= 0) {                
                 synonyms = computeAllSynonymousPositions(tbamrecords, hitcount, hitproportion,
                         tolerance, Math.max(tolerance, maxtolerance - 1), maxtolerance, chrbitset);
-            }
+            }            
         }
         return synonyms;
     }
@@ -697,10 +695,7 @@ class ThesaurusSynonyms {
 
         // return true also if the mate overlaps the origin position
         int os = thesentry.originStart - (reclen / 2);
-        int oe = thesentry.originEnd + (reclen / 2);
-        //if (thesentry.alignChr.equals(thesentry.originChr) && (matestart >= os && matestart <= oe && mateend >= os && mateend <= oe)) {
-        //    return true;
-        //}
+        int oe = thesentry.originEnd + (reclen / 2);        
         if (thesentry.alignChrIndex == thesentry.originChrIndex && (matestart >= os && matestart <= oe && mateend >= os && mateend <= oe)) {
             return true;
         }
@@ -802,7 +797,7 @@ class ThesaurusSynonyms {
      * only considers a subset of reads for which the supporting flag is set to
      * true
      *
-     * @return
+     * @return list of loci
      *
      *
      */

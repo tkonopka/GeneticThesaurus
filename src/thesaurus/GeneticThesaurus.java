@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Tomasz Konopka.
+ * Copyright 2013-2015 Tomasz Konopka.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ import thesaurus.misc.ThesaurusSubset;
 public class GeneticThesaurus {
 
     // set the version of this Genetic Thesaurus
-    final static String version = "0.1.1";
+    final static String version = "0.2.0 (development)";
     // set some default values
     public static final int DEFAULT_READLEN = 100;
     public static final int DEFAULT_DIVISOR = 10;

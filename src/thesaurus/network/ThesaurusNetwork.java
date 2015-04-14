@@ -44,7 +44,7 @@ public class ThesaurusNetwork implements Runnable {
         System.out.println("Usage: java -jar GeneticThesaurus.jar network ");
         System.out.println();
         System.out.println("Core options:");
-        ThesaurusIO.printHelpItem("--output <String>", "prefix for output files");
+        ThesaurusIO.printHelpItem("--output <String>", "output file name");
         ThesaurusIO.printHelpItem("--genome <File>", "genome fasta file");
         ThesaurusIO.printHelpItem("--vcf <File>", "variant call file");
         ThesaurusIO.printHelpItem("--vtf <File>", "variant thesaurus file [if not specified, will be loaded automatically based on vcf file name]");

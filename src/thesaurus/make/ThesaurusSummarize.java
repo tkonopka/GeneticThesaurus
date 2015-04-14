@@ -201,8 +201,6 @@ public class ThesaurusSummarize extends ThesaurusMapTool {
         genomebitset = new GenomeBitSet(ginfo);
 
         // process one file at a time. 
-        // The "if" is inside the loop but the loop is not expected to be long and this
-        // avoids reqriting loop/try/catch syntax many times
         try {
             if (what.equals("align")) {
                 for (int i = 0; i < input.size(); i++) {
@@ -222,19 +220,14 @@ public class ThesaurusSummarize extends ThesaurusMapTool {
         OutputStream outstream;
         try {
             outstream = OutputStreamMaker.makeOutputStream(output);
-        } catch (FileNotFoundException ex) {
+        } catch (Exception ex) {
             System.out.println("Something went wrong when opening outstream: " + ex.getMessage());
             Logger.getLogger(ThesaurusSummarize.class.getName()).log(Level.SEVERE, null, ex);
             return;
-        } catch (IOException ex) {
-            System.out.println("Something went wrong when opening outstream: " + ex.getMessage());
-            Logger.getLogger(ThesaurusSummarize.class.getName()).log(Level.SEVERE, null, ex);
-            return;
-        }
+        } 
 
         // output the bitset as a bed file
         outputGenomeBitSet(genomebitset, outstream);
-
 
         if (outstream != System.out) {
             try {

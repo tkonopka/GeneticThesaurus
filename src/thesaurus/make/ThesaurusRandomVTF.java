@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Tomasz Konopka.
+ * Copyright 2014-2015 Tomasz Konopka.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -167,7 +167,10 @@ public class ThesaurusRandomVTF extends ThesaurusMapTool {
         }
 
         // create random number generator
-        Random RNG = new Random(seed);
+        Random RNG = new Random();
+        if (seed > 0) {
+            RNG = new Random(seed);
+        }
 
         // set up input and output streams
         OutputStream outstream;
@@ -291,7 +294,7 @@ public class ThesaurusRandomVTF extends ThesaurusMapTool {
                 }
             } catch (Exception ex) {
                 System.out.println("BBB\t" + ex.getMessage());
-                System.out.println(gpos.toString());
+                System.out.println(gpos.toString() + " (" + gpos.getChr(bset.ginfo) + ")");
                 return null;
             }
         }
@@ -365,6 +368,7 @@ class SimpleBedSet {
         } catch (Exception ex) {
             System.out.println("Error loading bed regions: " + ex.getLocalizedMessage());
         }
+
     }
 
     void print() {
@@ -385,17 +389,22 @@ class SimpleBedSet {
 
         // find the row in the bedset that corresponds to the position
         int findpos = Arrays.binarySearch(offset, nowoffset);
-
+        
         if (findpos < 0) {
             findpos = -findpos - 1;
+        }
+
+        // this part was not present in earlier version and caused off-by-one bug
+        if (nowoffset == offset[findpos]) {
+            findpos++;
         }
 
         // the +1 is to convert from bed format into a GenomePosition (1-based)
         // start[findpos] is the start position of the interval
         // nowoffset-offset[findpos] is the offset within the interval                
-        if (findpos == 0) {
+        if (findpos == 0) {         
             return (new GenomePosition(chrs[findpos], 1 + start[findpos] + nowoffset));
-        } else {
+        } else {            
             return (new GenomePosition(chrs[findpos], 1 + start[findpos] + nowoffset - offset[findpos - 1]));
         }
     }
