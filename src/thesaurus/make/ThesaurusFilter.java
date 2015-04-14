@@ -254,7 +254,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
             if (options.has("vcf")) {
                 vcffile = (File) options.valueOf("vcf");
                 if (!vcffile.exists() || !vcffile.canRead()) {
-                    System.out.println("Cannot read vcf file, or file does not exist");
+                    System.out.println("Cannot read vcf file, or file does not exist: "+vcffile.getAbsolutePath());
                     ok = false;
                 }
             } else {
@@ -357,8 +357,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         }
 
         // more setup - need a comparator object for chromosomes and positions
-        GenomeInfo ginfo = null;
-        System.out.println(genome.getAbsolutePath());
+        GenomeInfo ginfo = null;        
         try {
             ginfo = new GenomeInfo(genome);
         } catch (Exception ex) {
@@ -370,8 +369,9 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         // read all the variants into memory                
         mylog.log("Reading variants");
         VCFEntrySet allvariants = new VCFEntrySet(vcffile, ginfo, true);
-        SNVPositionNetwork allnetwork = null;
-
+        allvariants.separateMultiSNVs();
+        SNVPositionNetwork allnetwork = null;        
+        
         // perform the filtering in another function
         try {
             mylog.log("Filtering variants using thesaurus");
