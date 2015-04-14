@@ -43,7 +43,7 @@ Source code is developed by Tomasz Konopka.
 Source code licence
 -------------------
 
-Copyright 2013-2014 Tomasz Konopka
+Copyright 2013-2015 Tomasz Konopka
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
