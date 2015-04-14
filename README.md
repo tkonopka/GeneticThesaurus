@@ -30,9 +30,11 @@ Usage information is available on the wiki pages at www.sourceforge.net.
 Authors
 -------
 
-GeneticThesaurus is described in an academic publication. If you find  GeneticThesaurus useful, please cite 
+GeneticThesaurus is described in an academic publication. If you find  GeneticThesaurus useful, please cite
 
-C. Kerzendorfer, T. Konopka, S. Nijman. "A thesaurus of genetic variation for interrogation of repetitive genomic regions" (under review)
+C. Kerzendorfer, T. Konopka, S. Nijman. "A thesaurus of genetic variation for interrogation of repetitive genomic regions" Nucleic Acids Research
+
+T.Konopka, S. Nijman. "GeneticThesaurus: Comparison of matched samples with thesaurus annotation" (under review)
 
 Source code is developed by Tomasz Konopka.
 
