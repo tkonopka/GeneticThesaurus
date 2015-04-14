@@ -594,7 +594,6 @@ public class ThesaurusFilter extends ThesaurusMapTool {
      *
      * @param variants
      *
-     *
      * @param allloci
      *
      * all SNVPositions in sorted order
