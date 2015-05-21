@@ -185,15 +185,7 @@ public class ThesaurusAlign extends ThesaurusMapTool {
 
     @Override
     void runTool() {
-
-        //FastaReader fr = null;
-        //try {
-        //    fr = new FastaReader(genome);
-        //} catch (Exception ex) {
-        //    System.out.println("Exception while creating genome fasta reader: " + ex.getMessage());
-        //    return;
-        //}
-
+        
         SAMFileHeader samheader = null;
         try {
             samheader = makeGenomeSAMFileHeader(genome, "thesalign");
@@ -206,21 +198,9 @@ public class ThesaurusAlign extends ThesaurusMapTool {
         SAMFileWriter alignSAM;
         alignSAM = new SAMFileWriterFactory().makeSAMOrBAMWriter(
                 samheader, true, new File(output + ".bam"));
-
-        //while (fr.hasNext()) {
-        //    try {
-        //        fr.readNext(true);
-        //    } catch (IOException ex) {
-        //        System.out.println("Exception while reading the genome: " + ex.getMessage());
-        //    }
-        //    processOneChrom(fr.getChromosomeName(),
-        //            fr.getSequenceBase0(0, fr.getChromosomeLength()),
-        //            alignSAM, samheader);
-        //}
-
+        
         processWholeGenome(alignSAM, samheader);
-
-        //fr.close();
+        
         alignSAM.close();
     }
 

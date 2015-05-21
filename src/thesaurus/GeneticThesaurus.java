@@ -40,7 +40,7 @@ import thesaurus.misc.ThesaurusSubset;
 public class GeneticThesaurus {
 
     // set the version of this Genetic Thesaurus
-    final static String version = "0.2.0";
+    final static String version = "0.2.1 (devel)";
     // set some default values
     public static final int DEFAULT_READLEN = 100;
     public static final int DEFAULT_DIVISOR = 10;
@@ -80,7 +80,7 @@ public class GeneticThesaurus {
         System.out.println("  summarize                - create bed or coverage files from a thesaurus file");
         System.out.println("  version                  - version");
         System.out.println();
-        System.out.println("\nAuthor: Tomasz Konopka (tkonopka@cemm.oeaw.ac.be)");
+        System.out.println("\nAuthor: Tomasz Konopka (tomasz.konopka@ludwig.ox.ac.uk)");
         System.out.println();
     }
 

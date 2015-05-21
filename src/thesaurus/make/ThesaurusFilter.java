@@ -254,7 +254,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
             if (options.has("vcf")) {
                 vcffile = (File) options.valueOf("vcf");
                 if (!vcffile.exists() || !vcffile.canRead()) {
-                    System.out.println("Cannot read vcf file, or file does not exist: "+vcffile.getAbsolutePath());
+                    System.out.println("Cannot read vcf file, or file does not exist: " + vcffile.getAbsolutePath());
                     ok = false;
                 }
             } else {
@@ -347,17 +347,9 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         OutputStream outvcf; // output variant call file file (vcf)
         OutputStream outvtf; // output variant thesaurus file (vtf)          
 
-        // ------------------ PASS 1
-        try {
-            outvcf = OutputStreamMaker.makeOutputStream(output + ".vcf.gz");
-            outvtf = OutputStreamMaker.makeOutputStream(output + ".vtf.gz");
-        } catch (Exception ex) {
-            System.out.println("Something went wrong during stream setup: " + ex.getMessage());
-            return;
-        }
-
+        // ------------------- PASS 0 (setup)
         // more setup - need a comparator object for chromosomes and positions
-        GenomeInfo ginfo = null;        
+        GenomeInfo ginfo = null;
         try {
             ginfo = new GenomeInfo(genome);
         } catch (Exception ex) {
@@ -370,8 +362,21 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         mylog.log("Reading variants");
         VCFEntrySet allvariants = new VCFEntrySet(vcffile, ginfo, true);
         allvariants.separateMultiSNVs();
-        SNVPositionNetwork allnetwork = null;        
-        
+        SNVPositionNetwork allnetwork = null;
+        if (!allvariants.check()) {
+            mylog.log("Variants in vcf do not match genome, exiting.");
+            return;
+        }
+
+        // ------------------ PASS 1
+        try {
+            outvcf = OutputStreamMaker.makeOutputStream(output + ".vcf.gz");
+            outvtf = OutputStreamMaker.makeOutputStream(output + ".vtf.gz");
+        } catch (Exception ex) {
+            System.out.println("Something went wrong during stream setup: " + ex.getMessage());
+            return;
+        }
+
         // perform the filtering in another function
         try {
             mylog.log("Filtering variants using thesaurus");
@@ -455,14 +460,14 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         int vs = variants.size();
         for (int i = 0; i < vs; i++) {
             // get the variant  
-            VCFEntry entry = variants.getVariant(i);            
+            VCFEntry entry = variants.getVariant(i);
 
             // collect some basic information about what the variant is and thesaurus filters
             String ref = entry.getRef();
             String alt = entry.getAlt();
             SNVPosition entrypos = new SNVPosition(entry, ginfo);
             ArrayList<SNVPosition> nowsynonyms = synonyms.getNeighborNodes(entrypos);
-           
+
             // start a BAF file entry with information about the varint
             StringBuilder sb = new StringBuilder();
             sb.append(entry.getChr()).append("\t").append(entry.getPosition()).append("\t").append(ref).append("\t").append(alt);
@@ -478,7 +483,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
                 sb.append(getBAFentryBlock(entrypos, comparedetails[j], nowsynonyms, vcomp, ginfo));
             }
             sb.append("\n");
-            
+
             outBAF.write(sb.toString().getBytes());
         }
     }
@@ -518,14 +523,14 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         if (naivecov == 0) {
             naiveBAF = 0.0;
         }
-        
+
         // get "thesaurus" estimates 
-        SNVPositionDetails thesdetails = new SNVPositionDetails(posdetails);        
+        SNVPositionDetails thesdetails = new SNVPositionDetails(posdetails);
         int numsynonyms = 0;
         if (nowsynonyms != null) {
             numsynonyms = nowsynonyms.size();
-            for (int i = 0; i < nowsynonyms.size(); i++) {                
-                thesdetails.incrementCounts(posdetailslist.find(nowsynonyms.get(i), vcomp));                
+            for (int i = 0; i < nowsynonyms.size(); i++) {
+                thesdetails.incrementCounts(posdetailslist.find(nowsynonyms.get(i), vcomp));
             }
         }
 
@@ -608,8 +613,8 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         SNVPositionDetailsList alldetails = new SNVPositionDetailsList(allsize);
         for (int i = 0; i < allsize; i++) {
             alldetails.add(new SNVPositionDetails(allloci.get(i)));
-        }                
-        alldetails.sortList();        
+        }
+        alldetails.sortList();
         return alldetails;
     }
 
@@ -681,6 +686,10 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         for (int i = 0; i < numvariants; i++) {
             VCFEntry entry = calledvariants.getVariant(i);
             //System.out.print(entry.toString(ginfo));
+            if (entry.getChr() == null) {
+                mylog.log("Chromosome in vcf not in genome fasta (does the genome match the data?)");
+                break; // this breaks the for loop over variants
+            }
 
             if (entry.isIndel()) {
                 // skip processing indels, but still change the filter and format fields
@@ -708,7 +717,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
                     // make a new bitset for the chromosome
                     chrbitset = new BitSet(genomereader.getChromosomeLength());
                 }
-                
+
                 // get entries in a wider window to update the bitset                               
                 ThesaurusEntry[] thesLinesOnLocus = thesregions.lookup(entry.getChr(), entry.getPosition(), insertsize);
                 if (thesLinesOnLocus != null) {
