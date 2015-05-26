@@ -58,7 +58,8 @@ class SNVPositionNode implements GenomePositionInterface {
      */
     void setNeighbors(ArrayList<SNVPositionNode> neighbors, GenomePositionComparator gcomp) {
         if (links != null) {
-            System.out.println("[Warning] position: " + snv.getPosition() + " attempt to set thesaurus links was ignored; links already set (complex variant?)");
+            System.out.println("[Warning] position: " + snv.getPosition()
+                    + "; ignored attempt to set thesaurus links (complex variant?)");
             return;
         }
         links = new ArrayList<SNVPositionNode>(neighbors.size());

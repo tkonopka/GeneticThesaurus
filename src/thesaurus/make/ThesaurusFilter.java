@@ -1021,7 +1021,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
         // prepare a header for a file with BAF estimates
         StringBuilder bafheader = new StringBuilder();
         bafheader.append("## BAF for variants\n");
-        bafheader.append("chr\tposition\tref\talt\tthesaurus.synonyms\t");
+        bafheader.append("chr\tposition\tref\talt\tthesaurus.synonyms");
 
         for (int i = 0; i < labels.size(); i++) {
             String nowlabel = labels.get(i);
