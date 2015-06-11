@@ -1028,7 +1028,7 @@ public class ThesaurusFilter extends ThesaurusMapTool {
             bafheader.append("\t" + nowlabel + ".naive.BAF"
                     + "\t" + nowlabel + ".thesaurus.BAF"
                     + "\t" + nowlabel + ".naive.cov"
-                    + "\t" + nowlabel + ".thesarus.cov");
+                    + "\t" + nowlabel + ".thesaurus.cov");
         }
 
         bafheader.append("\n");
