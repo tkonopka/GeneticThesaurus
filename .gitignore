@@ -4,5 +4,6 @@
 /dist/
 /build/
 build.xml
-manifest.xml
+manifest.mf
+
 
